@@ -25,6 +25,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "prettier": "^3.3.3",
     "supertest": "^7.0.0"
   }
 }
