@@ -2,7 +2,8 @@ import { initials } from '../../lib/format.js';
 
 const tones = {
   neutral: 'bg-surface-2 text-muted',
-  primary: 'bg-primary-soft text-primary',
+  primary: 'bg-primary-soft text-primary-strong',
+  ink: 'bg-ink text-ink-fg',
   success: 'bg-success-soft text-success',
   warn: 'bg-warn-soft text-warn',
   danger: 'bg-danger-soft text-danger',
@@ -64,55 +65,99 @@ export function EmptyState({ icon: Icon, title, description, action, className =
   return (
     <div className={`flex flex-col items-center justify-center px-6 py-12 text-center ${className}`}>
       {Icon && (
-        <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-surface-2 text-subtle">
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
           <Icon className="h-6 w-6" />
         </div>
       )}
-      <p className="font-semibold text-fg">{title}</p>
+      <p className="font-display font-semibold text-fg">{title}</p>
       {description && <p className="mt-1 max-w-sm text-sm text-muted">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-export function ProgressBar({ value, max = 100, tone = 'primary', className = '' }) {
+export function ProgressBar({ value, max = 100, tone = 'primary', size = 'md', className = '' }) {
   const pct = Math.max(0, Math.min(100, (value / (max || 1)) * 100));
-  const bar = { primary: 'bg-primary', success: 'bg-success', warn: 'bg-warn', danger: 'bg-danger' }[tone];
+  const bar = { primary: 'bg-primary', success: 'bg-success', warn: 'bg-warn', danger: 'bg-danger', white: 'bg-white' }[tone];
+  const h = { sm: 'h-1.5', md: 'h-2', lg: 'h-3' }[size];
   return (
-    <div className={`h-1.5 w-full overflow-hidden rounded-full bg-surface-2 ${className}`} role="progressbar" aria-valuenow={value} aria-valuemax={max}>
+    <div className={`${h} w-full overflow-hidden rounded-full ${tone === 'white' ? 'bg-white/25' : 'bg-surface-2'} ${className}`} role="progressbar" aria-valuenow={value} aria-valuemax={max}>
       <div className={`h-full rounded-full transition-all duration-300 ${bar}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
-export function StatCard({ label, value, hint, icon: Icon, tone = 'primary', loading }) {
-  const iconTone = {
-    primary: 'bg-primary-soft text-primary',
-    success: 'bg-success-soft text-success',
-    warn: 'bg-warn-soft text-warn',
-    info: 'bg-info-soft text-info',
-    danger: 'bg-danger-soft text-danger',
-  }[tone];
+const iconTones = {
+  primary: 'bg-primary-soft text-primary-strong',
+  success: 'bg-success-soft text-success',
+  warn: 'bg-warn-soft text-warn',
+  info: 'bg-info-soft text-info',
+  danger: 'bg-danger-soft text-danger',
+};
+
+/** Metric tile. `variant="hero"` renders the saturated brand card (QuizBox wallet). */
+export function StatCard({ label, value, hint, icon: Icon, tone = 'primary', loading, variant, className = '' }) {
+  if (variant === 'hero')
+    return (
+      <div className={`card-hero p-5 ${className}`}>
+        <div className="flex items-center gap-2">
+          {Icon && (
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white/20">
+              <Icon className="h-4 w-4" />
+            </span>
+          )}
+          <p className="font-display text-xs font-semibold uppercase tracking-wider text-white/90">{label}</p>
+        </div>
+        {loading ? <Skeleton className="mt-3 h-10 w-20 bg-white/20" /> : <p className="mt-3 font-display text-4xl font-bold tabular">{value ?? '—'}</p>}
+        {hint && <p className="mt-1 text-sm text-white/85">{hint}</p>}
+      </div>
+    );
   return (
-    <div className="card flex items-start gap-4 p-5">
+    <div className={`card flex items-start gap-4 p-5 ${className}`}>
       {Icon && (
-        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${iconTone}`}>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTones[tone]}`}>
           <Icon className="h-5 w-5" />
         </div>
       )}
       <div className="min-w-0">
-        <p className="text-sm text-muted">{label}</p>
-        {loading ? <Skeleton className="mt-2 h-7 w-16" /> : <p className="mt-0.5 font-display text-2xl font-bold text-fg">{value ?? '—'}</p>}
+        <p className="text-sm font-medium text-muted">{label}</p>
+        {loading ? <Skeleton className="mt-2 h-7 w-16" /> : <p className="mt-0.5 font-display text-2xl font-bold text-fg tabular">{value ?? '—'}</p>}
         {hint && <p className="mt-1 text-xs text-subtle">{hint}</p>}
       </div>
     </div>
   );
 }
 
-export function Avatar({ name, size = 'md' }) {
-  const s = { sm: 'h-7 w-7 text-[11px]', md: 'h-9 w-9 text-xs', lg: 'h-11 w-11 text-sm' }[size];
+/** Section heading with the QuizBox dot bullet. */
+export function SectionTitle({ children, action, className = '' }) {
   return (
-    <span className={`grid shrink-0 place-items-center rounded-full bg-primary-soft font-bold text-primary ${s}`} aria-hidden>
+    <div className={`mb-3 flex items-center justify-between gap-3 ${className}`}>
+      <h2 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-[0.08em] text-fg">
+        <span className="h-2 w-2 rounded-full bg-primary ring-4 ring-primary/15" />
+        {children}
+      </h2>
+      {action}
+    </div>
+  );
+}
+
+/** "25 Questions" style metadata: a round number badge followed by a label. */
+export function MetaPill({ value, label, onHero = false }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${onHero ? 'text-white/95' : 'text-muted'}`}>
+      <span className={`grid h-6 min-w-6 place-items-center rounded-full px-1.5 font-display text-[10.5px] font-bold tabular ${onHero ? 'bg-white text-[#0b1220]' : 'bg-surface-2 text-fg'}`}>{value}</span>
+      {label}
+    </span>
+  );
+}
+
+const AVATAR_HUES = ['bg-primary-soft text-primary-strong', 'bg-info-soft text-info', 'bg-success-soft text-success', 'bg-warn-soft text-warn'];
+const hueOf = (name = '') => AVATAR_HUES[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_HUES.length];
+
+export function Avatar({ name, size = 'md', ring = false, className = '' }) {
+  const s = { sm: 'h-7 w-7 text-[11px]', md: 'h-9 w-9 text-xs', lg: 'h-11 w-11 text-sm', xl: 'h-16 w-16 text-lg' }[size];
+  return (
+    <span className={`grid shrink-0 place-items-center rounded-full font-display font-bold ${hueOf(name)} ${ring ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface' : ''} ${s} ${className}`} aria-hidden>
       {initials(name) || '?'}
     </span>
   );
@@ -126,7 +171,7 @@ export function Alert({ tone = 'info', icon: Icon, title, children, className = 
     success: 'border-success/30 bg-success-soft text-success',
   }[tone];
   return (
-    <div className={`flex gap-3 rounded-lg border px-4 py-3 text-sm ${t} ${className}`} role="status">
+    <div className={`flex gap-3 rounded-xl border px-4 py-3 text-sm ${t} ${className}`} role="status">
       {Icon && <Icon className="mt-0.5 h-4 w-4 shrink-0" />}
       <div className="min-w-0">
         {title && <p className="font-semibold">{title}</p>}

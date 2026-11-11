@@ -8,52 +8,62 @@
  */
 @layer base {
   :root {
-    --c-bg: 244 246 250;
+    --c-bg: 244 247 252;
     --c-surface: 255 255 255;
-    --c-surface-2: 241 244 248;
-    --c-border: 226 232 240;
-    --c-fg: 17 28 45;
-    --c-muted: 88 103 125;
-    --c-subtle: 140 153 172;
-    --c-primary: 37 85 155;
+    --c-surface-2: 239 244 251;
+    --c-border: 224 232 243;
+    --c-fg: 12 22 40;
+    --c-muted: 82 98 122;
+    --c-subtle: 136 151 173;
+    /* Brand #2E9DFF: fills, rings, progress. `strong` is the accessible text tone,
+       `solid` the background for white button labels. */
+    --c-primary: 46 157 255;
+    --c-primary-strong: 18 108 222;
+    --c-primary-solid: 21 114 232;
     --c-primary-fg: 255 255 255;
-    --c-primary-soft: 232 240 252;
-    --c-success: 22 128 92;
-    --c-success-soft: 230 246 239;
-    --c-warn: 176 112 22;
-    --c-warn-soft: 253 244 226;
-    --c-danger: 196 54 54;
-    --c-danger-soft: 253 236 236;
-    --c-info: 30 120 190;
-    --c-info-soft: 229 242 252;
-    --c-sidebar: 14 31 52;
-    --c-sidebar-fg: 196 210 228;
-    --c-sidebar-active: 30 54 84;
+    --c-primary-soft: 232 243 255;
+    --c-ink: 11 18 32;
+    --c-ink-fg: 255 255 255;
+    --c-success: 16 145 94;
+    --c-success-soft: 226 247 237;
+    --c-warn: 196 120 10;
+    --c-warn-soft: 255 244 222;
+    --c-danger: 222 54 66;
+    --c-danger-soft: 254 236 238;
+    --c-info: 88 96 230;
+    --c-info-soft: 237 238 254;
+    --c-sidebar: 255 255 255;
+    --c-sidebar-fg: 82 98 122;
+    --c-sidebar-active: 232 243 255;
     color-scheme: light;
   }
 
   .dark {
-    --c-bg: 10 15 24;
-    --c-surface: 18 25 37;
-    --c-surface-2: 26 35 50;
-    --c-border: 38 50 70;
-    --c-fg: 230 236 245;
-    --c-muted: 152 166 188;
-    --c-subtle: 108 122 145;
-    --c-primary: 99 152 230;
-    --c-primary-fg: 8 17 32;
-    --c-primary-soft: 24 40 66;
-    --c-success: 64 196 146;
-    --c-success-soft: 14 44 36;
-    --c-warn: 236 172 76;
-    --c-warn-soft: 50 38 16;
-    --c-danger: 242 110 110;
-    --c-danger-soft: 58 22 26;
-    --c-info: 96 176 236;
-    --c-info-soft: 16 38 58;
-    --c-sidebar: 12 18 29;
-    --c-sidebar-fg: 168 183 205;
-    --c-sidebar-active: 28 40 60;
+    --c-bg: 8 13 23;
+    --c-surface: 15 22 36;
+    --c-surface-2: 22 32 50;
+    --c-border: 34 47 69;
+    --c-fg: 232 239 248;
+    --c-muted: 150 165 190;
+    --c-subtle: 106 121 146;
+    --c-primary: 46 157 255;
+    --c-primary-strong: 110 189 255;
+    --c-primary-solid: 24 124 232;
+    --c-primary-fg: 255 255 255;
+    --c-primary-soft: 17 38 66;
+    --c-ink: 236 242 250;
+    --c-ink-fg: 10 16 28;
+    --c-success: 52 199 140;
+    --c-success-soft: 12 46 36;
+    --c-warn: 245 176 70;
+    --c-warn-soft: 52 38 14;
+    --c-danger: 248 113 120;
+    --c-danger-soft: 60 20 26;
+    --c-info: 146 152 255;
+    --c-info-soft: 30 32 70;
+    --c-sidebar: 12 18 30;
+    --c-sidebar-fg: 150 165 190;
+    --c-sidebar-active: 17 38 66;
     color-scheme: dark;
   }
 
@@ -81,16 +91,16 @@
 
 @layer components {
   .btn {
-    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition duration-150 active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
   }
   .btn svg {
     @apply h-4 w-4 shrink-0;
   }
   .btn-primary {
-    @apply bg-primary text-primary-fg shadow-sm hover:bg-primary/90;
+    @apply bg-primary-solid text-primary-fg shadow-[0_6px_16px_-8px_rgb(var(--c-primary)/0.8)] hover:bg-primary-solid/90;
   }
   .btn-secondary {
-    @apply border border-border bg-surface text-fg shadow-sm hover:bg-surface-2;
+    @apply border border-border bg-surface text-fg shadow-sm hover:border-primary/40 hover:bg-surface-2;
   }
   .btn-ghost {
     @apply text-muted hover:bg-surface-2 hover:text-fg;
@@ -98,49 +108,111 @@
   .btn-danger {
     @apply bg-danger text-white shadow-sm hover:bg-danger/90;
   }
+  /* QuizBox-style black call to action. Inverts in dark mode. */
+  .btn-ink {
+    @apply bg-ink font-display text-xs font-bold uppercase tracking-[0.08em] text-ink-fg hover:bg-ink/85;
+  }
   .btn-sm {
-    @apply px-2.5 py-1.5 text-xs;
+    @apply h-8 rounded-lg px-3 text-xs;
+  }
+  .btn-lg {
+    @apply h-12 rounded-2xl px-6 text-base;
   }
   .btn-icon {
-    @apply p-2;
+    @apply w-10 px-0;
+  }
+  .btn-sm.btn-icon {
+    @apply w-8;
   }
 
   .input {
-    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg shadow-sm transition placeholder:text-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg transition placeholder:text-subtle hover:border-subtle/60 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .input[aria-invalid='true'] {
-    @apply border-danger focus:ring-danger/20;
+    @apply border-danger focus:ring-danger/15;
   }
   .label {
-    @apply mb-1.5 block text-sm font-medium text-fg;
+    @apply mb-1.5 block text-sm font-semibold text-fg;
   }
 
   .card {
-    @apply rounded-xl border border-border bg-surface shadow-card;
+    @apply rounded-2xl border border-border/80 bg-surface shadow-card;
+  }
+
+  /* Saturated brand card with a fading halftone and a soft circle (QuizBox hero). */
+  .card-hero {
+    --hero-from: 46 157 255;
+    --hero-to: 15 98 217;
+    @apply relative isolate overflow-hidden rounded-3xl text-white shadow-hero;
+    background-image: linear-gradient(135deg, rgb(var(--hero-from)) 0%, rgb(var(--hero-to)) 100%);
+  }
+  .card-hero::before {
+    content: '';
+    @apply pointer-events-none absolute inset-0 -z-10;
+    background-image: radial-gradient(rgb(255 255 255 / 0.28) 1.1px, transparent 1.7px);
+    background-size: 11px 11px;
+    -webkit-mask-image: linear-gradient(120deg, transparent 40%, #000 100%);
+    mask-image: linear-gradient(120deg, transparent 40%, #000 100%);
+  }
+  .card-hero::after {
+    content: '';
+    @apply pointer-events-none absolute -right-16 -top-20 -z-10 h-56 w-56 rounded-full bg-white/10;
+  }
+  .hero-sky {
+    --hero-from: 46 157 255;
+    --hero-to: 15 98 217;
+  }
+  .hero-indigo {
+    --hero-from: 102 126 255;
+    --hero-to: 56 72 214;
+  }
+  .hero-teal {
+    --hero-from: 20 184 196;
+    --hero-to: 10 112 168;
+  }
+  .hero-ocean {
+    --hero-from: 56 189 248;
+    --hero-to: 30 110 230;
+  }
+  /* Black CTA tucked into a hero card's bottom-right corner. */
+  .cta-corner {
+    @apply absolute bottom-0 right-0 h-auto rounded-none rounded-tl-2xl px-6 py-3.5;
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold;
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-primary-soft px-2 py-1 font-display text-[10.5px] font-semibold uppercase leading-none tracking-wide text-primary-strong;
+  }
+  .chip svg {
+    @apply h-3 w-3 shrink-0;
+  }
+  .chip-light {
+    @apply bg-white/95 text-[#0b1220];
+  }
+  .chip-glass {
+    @apply bg-white/15 text-white ring-1 ring-inset ring-white/25;
   }
 
   .table-base {
     @apply w-full border-collapse text-left text-sm;
   }
   .table-base th {
-    @apply border-b border-border bg-surface-2/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted;
+    @apply border-b border-border bg-surface-2/60 px-4 py-3 font-display text-[11px] font-semibold uppercase tracking-wider text-muted;
   }
   .table-base td {
-    @apply border-b border-border px-4 py-3 align-middle;
+    @apply border-b border-border/70 px-4 py-3 align-middle;
   }
   .table-base tbody tr:last-child td {
     @apply border-b-0;
   }
   .table-base tbody tr {
-    @apply transition-colors hover:bg-surface-2/50;
+    @apply transition-colors hover:bg-primary-soft/40;
   }
 
   .kbd {
-    @apply rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted;
+    @apply rounded-md border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted;
   }
 }
 
@@ -151,5 +223,18 @@
   }
   .scrollbar-thin {
     scrollbar-width: thin;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }

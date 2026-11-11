@@ -14,11 +14,11 @@ export function Stepper({ steps, current, onStepClick, maxReachable = current })
               type="button"
               disabled={!clickable}
               onClick={() => clickable && onStepClick(i)}
-              className={`flex min-w-0 items-center gap-2.5 rounded-lg px-1 py-1 text-left ${clickable ? 'hover:bg-surface-2' : 'cursor-default'}`}
+              className={`flex min-w-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition ${clickable ? 'hover:bg-surface-2' : 'cursor-default'}`}
             >
               <span
-                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition ${
-                  done ? 'bg-primary text-primary-fg' : active ? 'bg-primary-soft text-primary ring-2 ring-primary' : 'bg-surface-2 text-subtle'
+                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-xs font-bold transition ${
+                  done ? 'bg-primary text-white shadow-hero' : active ? 'bg-ink text-ink-fg ring-4 ring-primary/20' : 'bg-surface-2 text-subtle'
                 }`}
               >
                 {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
@@ -28,7 +28,7 @@ export function Stepper({ steps, current, onStepClick, maxReachable = current })
                 {step.description && <span className="block truncate text-xs text-subtle">{step.description}</span>}
               </span>
             </button>
-            {i < steps.length - 1 && <span className={`h-px min-w-4 flex-1 ${done ? 'bg-primary' : 'bg-border'}`} />}
+            {i < steps.length - 1 && <span className={`h-1 min-w-4 flex-1 rounded-full ${done ? 'bg-primary' : 'bg-surface-2'}`} />}
           </li>
         );
       })}

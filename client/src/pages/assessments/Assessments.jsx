@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   BarChart3,
   CalendarClock,
-  CheckCircle2,
   ClipboardList,
   DoorOpen,
   Pause,
@@ -12,7 +11,6 @@ import {
   Play,
   Plus,
   Radio,
-  RotateCcw,
   Search,
   Send,
   ShieldAlert,
@@ -26,18 +24,11 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useApi } from '../../hooks/useApi.js';
 import { useSocketEvent } from '../../hooks/useSocketEvent.js';
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton, StatusBadge, Tabs, useConfirm } from '../../components/ui/index.js';
+import { QuizCard, hueFor } from '../../components/domain/QuizCard.jsx';
 import { fmtDateTime } from '../../lib/format.js';
 
 const OPEN_STATES = ['AVAILABLE', 'LIVE', 'PAUSED'];
 const PAST_STATES = ['ENDED', 'COMPLETED', 'PUBLISHED', 'CANCELLED'];
-const ROOM_JOINABLE = ['SCHEDULED', 'AVAILABLE', 'LIVE', 'PAUSED'];
-
-const submitReasonText = {
-  PROCTORING_LIMIT: 'Auto-submitted: proctoring limit',
-  TEACHER: 'Submitted by teacher',
-  TIMEOUT: 'Submitted when time ran out',
-  ASSESSMENT_ENDED: 'Submitted when the quiz ended',
-};
 
 function bucket(a, role) {
   if (role === 'student') {
@@ -54,7 +45,6 @@ function bucket(a, role) {
 function Meta({ a }) {
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-      <span className="font-mono font-semibold text-primary">{a.subject?.code}</span>
       <span className="inline-flex items-center gap-1">
         <Timer className="h-3.5 w-3.5" /> {a.durationMinutes} min
       </span>
@@ -133,59 +123,13 @@ function TeacherActions({ a, reload }) {
   return buttons;
 }
 
-function StudentActions({ a }) {
-  const navigate = useNavigate();
-  const confirm = useConfirm();
-  const mine = a.myAttempts || {};
-  const join = async () => {
-    const code = await confirm({ title: 'Join exam room', body: 'Enter the room code your teacher shared.', confirmLabel: 'Join', input: { placeholder: 'RVCE-QUIZ-XXXXXX', minLength: 8 } });
-    if (!code) return;
-    try {
-      const room = await api.post('/rooms/join', { code: code.toUpperCase() });
-      navigate(`/rooms/${room._id}`);
-    } catch (e) {
-      toast.error(String(e));
-    }
-  };
-  if (mine.activeId)
-    return (
-      <Button size="sm" variant="primary" icon={RotateCcw} to={`/exam/${a._id}?resume=1`}>
-        Resume
-      </Button>
-    );
-  const attemptsLeft = (a.attemptsAllowed || 1) - (mine.count || 0);
-  if (a.availabilityMode === 'room' && ROOM_JOINABLE.includes(a.state) && attemptsLeft > 0)
-    return (
-      <Button size="sm" variant="primary" icon={DoorOpen} onClick={join}>
-        Join room
-      </Button>
-    );
-  if (['AVAILABLE', 'LIVE'].includes(a.state) && attemptsLeft > 0)
-    return (
-      <Button size="sm" variant="primary" icon={Play} to={`/exam/${a._id}`}>
-        {mine.count ? 'Retake' : 'Start'}
-      </Button>
-    );
-  if (mine.count)
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
-        <CheckCircle2 className="h-4 w-4" /> {submitReasonText[mine.lastSubmitReason] || 'Submitted'}
-        {a.state === 'PUBLISHED' && (
-          <Button size="sm" variant="ghost" to="/grades" className="ml-1">
-            View result
-          </Button>
-        )}
-      </span>
-    );
-  return null;
-}
-
 export default function Assessments() {
   const { user } = useAuth();
   const isStudent = user.role === 'student';
   const { data, loading, reload } = useApi('/assessments', { initial: [] });
   const [tab, setTab] = useState(isStudent ? 'open' : 'all');
-  const [query, setQuery] = useState('');
+  const [params] = useSearchParams();
+  const [query, setQuery] = useState(() => params.get('q') || '');
   useSocketEvent('notification:new', reload);
   useSocketEvent('assessment:ended', reload);
 
@@ -225,39 +169,18 @@ export default function Assessments() {
           <input className="input pl-9" placeholder="Search quizzes" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
       </div>
-      <Card>
-        {loading && !data.length ? (
-          <div className="space-y-3 p-5">
-            {Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} className="h-16" />
-            ))}
-          </div>
-        ) : rows.length ? (
-          <ul className="divide-y divide-border">
-            {rows.map((a) => (
-              <li key={a._id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate font-semibold text-fg">{a.title}</p>
-                    <StatusBadge state={a.state} />
-                    {!isStudent && a.attemptStats?.inProgress > 0 && (
-                      <Badge tone="info">
-                        <Users className="h-3 w-3" /> {a.attemptStats.inProgress} writing
-                      </Badge>
-                    )}
-                    {!isStudent && a.attemptStats?.submitted > 0 && <Badge>{a.attemptStats.submitted} submitted</Badge>}
-                  </div>
-                  <Meta a={a} />
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">{isStudent ? <StudentActions a={a} /> : <TeacherActions a={a} reload={reload} />}</div>
-              </li>
-            ))}
-          </ul>
-        ) : (
+      {loading && !data.length ? (
+        <div className={isStudent ? 'grid gap-5 sm:grid-cols-2 xl:grid-cols-3' : 'card space-y-3 p-5'}>
+          {Array.from({ length: isStudent ? 3 : 4 }, (_, i) => (
+            <Skeleton key={i} className={isStudent ? 'h-56 rounded-3xl' : 'h-16'} />
+          ))}
+        </div>
+      ) : !rows.length ? (
+        <Card>
           <EmptyState
             icon={ClipboardList}
-            title={data.length ? 'Nothing here' : isStudent ? 'No quizzes yet' : 'No quizzes yet'}
-            description={isStudent ? 'Quizzes from your subjects appear here once published.' : 'Create a quiz from your question bank. It takes a couple of minutes.'}
+            title={data.length ? 'Nothing here' : 'No quizzes yet'}
+            description={isStudent ? (tab === 'open' ? 'No quiz is open right now. Upcoming quizzes appear in the next tab.' : 'Quizzes from your subjects appear here once published.') : 'Create a quiz from your question bank. It takes a couple of minutes.'}
             action={
               !isStudent &&
               !data.length && (
@@ -267,8 +190,42 @@ export default function Assessments() {
               )
             }
           />
-        )}
-      </Card>
+        </Card>
+      ) : isStudent ? (
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((a, i) => (
+            <QuizCard key={a._id} a={a} hero={tab === 'open'} className="animate-rise-in" style={{ animationDelay: `${i * 40}ms` }} />
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <ul className="divide-y divide-border/70">
+            {rows.map((a) => (
+              <li key={a._id} className="flex flex-col gap-3 px-5 py-4 transition hover:bg-surface-2/40 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                  <span className={`card-hero ${hueFor(a.subject?.code)} grid h-12 w-12 shrink-0 place-items-center !rounded-2xl !shadow-none font-display text-[11px] font-bold`}>{a.subject?.code}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-display font-semibold text-fg">{a.title}</p>
+                      <StatusBadge state={a.state} />
+                      {a.attemptStats?.inProgress > 0 && (
+                        <Badge tone="info">
+                          <Users className="h-3 w-3" /> {a.attemptStats.inProgress} writing
+                        </Badge>
+                      )}
+                      {a.attemptStats?.submitted > 0 && <Badge>{a.attemptStats.submitted} submitted</Badge>}
+                    </div>
+                    <Meta a={a} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <TeacherActions a={a} reload={reload} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </>
   );
 }

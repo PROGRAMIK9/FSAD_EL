@@ -4,6 +4,29 @@ RVCE Academic Hub is a role-aware academic management application built as a MER
 
 This guide is intended to help a developer orient themselves in the repository, run it locally, and trace how the main data and request flows work. For the concise endpoint inventory see [docs/API.md](docs/API.md); for deployment and operations see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); for milestone history see [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md).
 
+## Quick start
+
+```bash
+./run.sh
+```
+
+On the first run this creates a local `.env` (random JWT secret, local MongoDB, sign-in picker enabled), installs dependencies, starts MongoDB (a local `mongod` with data in `.data/`, or Docker Compose when `mongod` is not installed), loads sample accounts if the database is empty, and starts the API on <http://localhost:4000/api> and the app on <http://localhost:5173>. Pick a sample admin, teacher or student on the sign-in page. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop; the MongoDB started by the script stops with it.
+
+| Command | What it does |
+|---|---|
+| `./run.sh` | Set up if needed, start MongoDB, seed an empty database, run API and client |
+| `./run.sh setup` | Create `.env` and install dependencies only |
+| `./run.sh seed` | Reload the sample accounts, subjects and quizzes |
+| `./run.sh test` | Run the server tests |
+| `./run.sh build` | Build the client into `client/dist` |
+| `./run.sh stop` | Stop a MongoDB left running by the script |
+
+Requirements: Node.js 20+, and either MongoDB 7 (`mongod`) or Docker. The generated `.env` is for local development only; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for production settings.
+
+**Exporting results.** Teachers download a quiz's results from *Evaluation* or the quiz report (**Export → Excel workbook / CSV**). The workbook has a results sheet, a per-question marks sheet and a summary. Students download their published grades from *My grades*; admins download every published grade from the dashboard.
+
+The project report (LaTeX, Times New Roman 12 pt) is in [docs/report](docs/report).
+
 ## Product scope
 
 - Google sign-in for pre-provisioned accounts. The default allowed domain is `rvce.edu.in`; explicit email exceptions can be configured.

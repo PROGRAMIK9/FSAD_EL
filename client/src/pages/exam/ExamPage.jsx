@@ -10,21 +10,25 @@ import {
   CheckCircle2,
   Clock,
   CloudOff,
+  Copy,
   Grid3x3,
   Loader2,
   Maximize,
+  Play,
+  Save,
+  Send,
   ShieldCheck,
   Wifi,
   WifiOff,
 } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { getSocket } from '../../lib/socket.js';
-import { fmtDuration, fmtRelative } from '../../lib/format.js';
+import { fmtRelative } from '../../lib/format.js';
 import { useApi } from '../../hooks/useApi.js';
 import { useServerClock } from '../../hooks/useServerClock.js';
 import { useSocketEvent } from '../../hooks/useSocketEvent.js';
 import { FOCUS_EVENTS, enterFullscreen, exitFullscreen, useProctoring } from '../../hooks/useProctoring.js';
-import { Alert, Badge, Button, Checkbox, Modal, Spinner } from '../../components/ui/index.js';
+import { Alert, Button, Checkbox, MetaPill, Modal, SectionTitle, Spinner, TimerRing } from '../../components/ui/index.js';
 import { DuplicateTabOverlay, FinishedScreen, MessageOverlay, PausedOverlay, ViolationOverlay } from './ExamOverlays.jsx';
 import { clearBackup, useAnswers } from './useAnswers.js';
 
@@ -37,49 +41,51 @@ function Gate({ info, resuming, busy, onBegin, onBack }) {
   const notOpenYet = !resuming && info.availabilityMode !== 'room' && (info.state === 'SCHEDULED' || (info.startsAt && new Date(info.startsAt) > new Date()));
   const closed = !resuming && ['ENDED', 'COMPLETED', 'PUBLISHED', 'CANCELLED'].includes(info.state);
   const rules = [
-    `${info.durationMinutes} minutes once you start. The timer keeps running if you leave, and the quiz submits itself when time is up.`,
-    'Answers save automatically as you go. If you lose connection, keep working; they are kept on this device and sent when you reconnect.',
+    [Clock, `${info.durationMinutes} minutes once you start. The timer keeps running if you leave, and the quiz submits itself when time is up.`],
+    [Save, 'Answers save automatically as you go. If you lose connection, keep working; they are kept on this device and sent when you reconnect.'],
   ];
   if (p.enabled) {
-    if (p.requireFullscreen) rules.push('The quiz runs in fullscreen. Leaving fullscreen counts as a warning.');
-    rules.push('Switching tabs, minimising the browser or clicking into another window counts as a warning.');
-    if (p.detectDuplicateTab) rules.push('Opening the quiz in a second tab or window counts as a warning.');
-    if (p.blockClipboard) rules.push('Copy, cut and paste are disabled.');
-    if (p.blockContextMenu) rules.push('Right-click, printing and browser developer shortcuts are disabled.');
-    if (p.maxViolations > 0) rules.push(`At warning ${p.maxViolations} your quiz is submitted automatically with the answers saved so far.`);
+    if (p.requireFullscreen) rules.push([Maximize, 'The quiz runs in fullscreen. Leaving fullscreen counts as a warning.']);
+    rules.push([AlertTriangle, 'Switching tabs, minimising the browser or clicking into another window counts as a warning.']);
+    if (p.detectDuplicateTab) rules.push([Copy, 'Opening the quiz in a second tab or window counts as a warning.']);
+    if (p.blockClipboard) rules.push([ShieldCheck, 'Copy, cut and paste are disabled.']);
+    if (p.blockContextMenu) rules.push([ShieldCheck, 'Right-click, printing and browser developer shortcuts are disabled.']);
+    if (p.maxViolations > 0) rules.push([Send, `At warning ${p.maxViolations} your quiz is submitted automatically with the answers saved so far.`]);
   }
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg p-4">
-      <div className="w-full max-w-2xl animate-scale-in rounded-2xl border border-border bg-surface shadow-pop">
-        <div className="border-b border-border p-6 sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {info.subject?.code} · Quiz · {info.maxMarks || 10} marks
-          </p>
-          <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">{info.title}</h1>
-          {info.description && <p className="mt-3 whitespace-pre-wrap text-muted">{info.description}</p>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Badge tone="primary">
-              <Clock className="h-3.5 w-3.5" /> {info.durationMinutes} min
-            </Badge>
+    <div className="flex min-h-screen items-center justify-center bg-bg p-4 sm:p-8">
+      <div className="w-full max-w-2xl animate-scale-in overflow-hidden rounded-3xl border border-border/80 bg-surface shadow-pop">
+        <div className="card-hero !rounded-none p-6 !shadow-none sm:p-8">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {info.subject?.code && <span className="chip chip-light">{info.subject.code}</span>}
             {p.enabled && (
-              <Badge tone="warn">
-                <ShieldCheck className="h-3.5 w-3.5" /> Proctored
-              </Badge>
+              <span className="chip chip-glass">
+                <ShieldCheck /> Proctored
+              </span>
             )}
-            {resuming && <Badge tone="info">Resuming your attempt</Badge>}
+            {resuming && <span className="chip bg-warn text-white">Resuming</span>}
+          </div>
+          <h1 className="mt-3 text-2xl font-bold leading-tight sm:text-3xl">{info.title}</h1>
+          {info.description && <p className="mt-2 max-w-xl whitespace-pre-wrap text-sm text-white/85">{info.description}</p>}
+          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+            <MetaPill value={info.durationMinutes} label="Minutes" onHero />
+            <MetaPill value={info.maxMarks || 10} label="Marks" onHero />
+            {p.enabled && p.maxViolations > 0 && <MetaPill value={p.maxViolations} label="Warnings allowed" onHero />}
           </div>
         </div>
         <div className="p-6 sm:p-8">
-          <h2 className="text-base font-bold">Before you begin</h2>
-          <ul className="mt-3 space-y-2.5">
-            {rules.map((r) => (
+          <SectionTitle>Before you begin</SectionTitle>
+          <ul className="space-y-3">
+            {rules.map(([Icon, r]) => (
               <li key={r} className="flex gap-3 text-sm text-muted">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                {r}
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary-strong">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="pt-1.5">{r}</span>
               </li>
             ))}
           </ul>
-          {p.enabled && <p className="mt-4 text-xs text-subtle">Only browser activity is monitored. Your camera, microphone and screen are never accessed.</p>}
+          {p.enabled && <p className="mt-5 rounded-xl bg-surface-2 px-4 py-3 text-xs text-muted">Only browser activity is monitored. Your camera, microphone and screen are never accessed.</p>}
           {p.enabled && p.requireFullscreen && !canFullscreen && (
             <Alert tone="warn" icon={AlertTriangle} className="mt-4" title="Fullscreen isn't available in this browser">
               You can continue, but use a desktop browser if you can.
@@ -96,9 +102,11 @@ function Gate({ info, resuming, busy, onBegin, onBack }) {
             </Alert>
           )}
           <Checkbox className="mt-6" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} label="I have read the rules and I'm ready to start." />
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button onClick={onBack}>Not now</Button>
-            <Button variant="primary" icon={p.enabled && p.requireFullscreen && canFullscreen ? Maximize : undefined} disabled={!agreed || closed || notOpenYet} loading={busy} onClick={onBegin} className="py-2.5">
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <Button variant="ghost" onClick={onBack}>
+              Not now
+            </Button>
+            <Button variant="primary" size="lg" icon={p.enabled && p.requireFullscreen && canFullscreen ? Maximize : Play} disabled={!agreed || closed || notOpenYet} loading={busy} onClick={onBegin}>
               {resuming ? 'Resume quiz' : 'Start quiz'}
               {p.enabled && p.requireFullscreen && canFullscreen ? ' in fullscreen' : ''}
             </Button>
@@ -109,40 +117,30 @@ function Gate({ info, resuming, busy, onBegin, onBack }) {
   );
 }
 
-function Timer({ seconds, paused }) {
-  const tone = paused ? 'bg-surface-2 text-muted' : seconds <= 60 ? 'bg-danger text-white animate-pulse' : seconds <= 300 ? 'bg-warn-soft text-warn' : 'bg-surface-2 text-fg';
-  return (
-    <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-mono text-lg font-bold tabular-nums ${tone}`} role="timer" aria-live={seconds <= 60 ? 'assertive' : 'off'}>
-      <Clock className="h-4 w-4" />
-      {fmtDuration(seconds)}
-      {paused && <span className="font-sans text-xs font-semibold">paused</span>}
-    </div>
-  );
-}
-
 function SaveStatus({ status, lastSavedAt }) {
+  const base = 'inline-flex items-center gap-1.5 text-xs font-medium';
   if (status === 'offline')
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warn">
+      <span className={`${base} rounded-md bg-warn px-1.5 py-0.5 text-white`}>
         <CloudOff className="h-3.5 w-3.5" /> Offline: answers kept on this device
       </span>
     );
   if (status === 'error')
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-danger">
+      <span className={`${base} rounded-md bg-danger px-1.5 py-0.5 text-white`}>
         <AlertTriangle className="h-3.5 w-3.5" /> Not saved, retrying…
       </span>
     );
   if (status === 'saving')
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+      <span className={`${base} text-white/85`}>
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
       </span>
     );
   if (lastSavedAt)
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted" title={lastSavedAt.toLocaleTimeString()}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-success" /> Saved {fmtRelative(lastSavedAt)}
+      <span className={`${base} text-white/85`} title={lastSavedAt.toLocaleTimeString()}>
+        <CheckCircle2 className="h-3.5 w-3.5" /> Saved {fmtRelative(lastSavedAt)}
       </span>
     );
   return null;
@@ -151,7 +149,7 @@ function SaveStatus({ status, lastSavedAt }) {
 function Palette({ questions, answers, current, onJump }) {
   return (
     <div>
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-5 gap-2.5">
         {questions.map((q, i) => {
           const a = answers[q._id];
           const answered = isAnswered(a);
@@ -162,23 +160,25 @@ function Palette({ questions, answers, current, onJump }) {
               onClick={() => onJump(i)}
               aria-label={`Question ${i + 1}${answered ? ', answered' : ''}${a?.flagged ? ', marked for review' : ''}`}
               aria-current={i === current}
-              className={`relative grid h-10 place-items-center rounded-lg text-sm font-bold transition ${answered ? 'bg-primary text-primary-fg' : 'border border-border bg-surface text-muted hover:border-primary/50'} ${i === current ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface' : ''}`}
+              className={`relative grid aspect-square place-items-center rounded-full font-display text-sm font-semibold transition hover:scale-105 ${
+                answered ? 'bg-primary text-white shadow-[0_6px_14px_-8px_rgb(var(--c-primary))]' : 'bg-surface-2 text-muted hover:text-fg'
+              } ${i === current ? 'ring-[3px] ring-ink ring-offset-2 ring-offset-surface' : ''}`}
             >
               {i + 1}
-              {a?.flagged && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-surface bg-warn" />}
+              {a?.flagged && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-surface bg-warn" />}
             </button>
           );
         })}
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-muted">
+      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-primary" /> Answered
+          <span className="h-3 w-3 rounded-full bg-primary" /> Answered
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-border" /> Not answered
+          <span className="h-3 w-3 rounded-full bg-surface-2 ring-1 ring-border" /> Not yet
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-warn" /> For review
+          <span className="h-3 w-3 rounded-full bg-warn" /> Review
         </span>
       </div>
     </div>
@@ -188,37 +188,43 @@ function Palette({ questions, answers, current, onJump }) {
 function QuestionView({ q, index, total, answer, onAnswer, disabled, noSelect }) {
   return (
     <div className="animate-fade-in">
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-semibold text-muted">
-          Question {index + 1} of {total}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 font-display text-xs font-semibold text-ink-fg tabular">
+          {index + 1}
+          <span className="opacity-60">/ {total}</span>
         </span>
-        <Badge tone="primary">{q.type === 'single' ? 'Choose one' : 'Type your answer'}</Badge>
-        <Badge>
+        <span className="chip">{q.type === 'single' ? 'Choose one' : 'Type your answer'}</span>
+        <span className="chip bg-surface-2 text-muted">
           {q.marks} mark{q.marks === 1 ? '' : 's'}
-        </Badge>
+        </span>
       </div>
-      <h2 className={`whitespace-pre-wrap text-xl font-semibold leading-relaxed text-fg sm:text-2xl ${noSelect ? 'no-select' : ''}`}>{q.text}</h2>
+      <h2 className={`whitespace-pre-wrap font-display text-xl font-semibold leading-relaxed text-fg sm:text-[1.4rem] ${noSelect ? 'no-select' : ''}`}>{q.text}</h2>
       {q.type === 'single' ? (
-        <fieldset className="mt-6 space-y-3" disabled={disabled}>
+        <fieldset className="mt-7 space-y-3" disabled={disabled}>
           <legend className="sr-only">Options</legend>
           {q.options.map((o, i) => {
             const selected = answer?.value === o.key;
             return (
               <label
                 key={o.key}
-                className={`flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition ${selected ? 'border-primary bg-primary-soft' : 'border-border bg-surface hover:border-primary/40'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+                className={`group flex cursor-pointer items-center gap-4 rounded-2xl p-3.5 pr-5 transition duration-150 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-primary/30 ${
+                  selected ? 'animate-pop bg-primary-solid text-white shadow-hero' : 'bg-surface text-fg shadow-card ring-1 ring-border hover:-translate-y-0.5 hover:shadow-lift hover:ring-primary/40'
+                } ${disabled ? 'pointer-events-none opacity-60' : ''}`}
               >
                 <input type="radio" name={`q-${q._id}`} className="sr-only" checked={selected} onChange={() => onAnswer({ value: o.key })} />
-                <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${selected ? 'bg-primary text-primary-fg' : 'bg-surface-2 text-muted'}`}>{String.fromCharCode(65 + i)}</span>
-                <span className={`pt-0.5 text-base text-fg ${noSelect ? 'no-select' : ''}`}>{o.text}</span>
+                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl font-display text-sm font-bold transition ${selected ? 'bg-white text-[#0F62D9]' : 'bg-surface-2 text-muted group-hover:bg-primary-soft group-hover:text-primary-strong'}`}>
+                  {String.fromCharCode(65 + i)}
+                </span>
+                <span className={`min-w-0 flex-1 text-[15px] font-medium ${noSelect ? 'no-select' : ''}`}>{o.text}</span>
+                <CheckCircle2 className={`h-5 w-5 shrink-0 transition ${selected ? 'opacity-100' : 'opacity-0'}`} aria-hidden />
               </label>
             );
           })}
         </fieldset>
       ) : (
-        <div className="mt-6">
+        <div className="mt-7">
           <input
-            className="input py-3 text-lg"
+            className="input rounded-2xl px-5 py-4 text-lg"
             placeholder="Type your answer"
             maxLength={200}
             autoComplete="off"
@@ -454,36 +460,68 @@ export default function ExamPage() {
   const unanswered = questions.map((x, i) => (!isAnswered(answers[x._id]) ? i + 1 : null)).filter(Boolean);
   const locked = paused != null;
 
+  const total = Math.max((exam.assessment.durationMinutes || 0) * 60, remaining);
+  const warnTone = violationCount === 0 ? 'chip-glass' : violationCount >= policy.maxViolations - 1 ? 'bg-danger text-white' : 'bg-warn text-white';
+
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+      <header className="card-hero sticky top-0 z-20 !rounded-none !rounded-b-3xl">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 pb-3 pt-4 sm:px-6">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display font-bold text-fg">{exam.assessment.title}</p>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {exam.assessment.subject?.code && <span className="chip chip-light">{exam.assessment.subject.code}</span>}
+              {policy.enabled && policy.maxViolations > 0 && (
+                <span className={`chip ${warnTone}`}>
+                  <ShieldCheck /> Warnings {violationCount}/{policy.maxViolations}
+                </span>
+              )}
+              {!online && (
+                <span className="chip bg-danger text-white">
+                  <WifiOff /> No connection
+                </span>
+              )}
+            </div>
+            <p className="mt-1.5 truncate font-display text-base font-bold sm:text-lg">{exam.assessment.title}</p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-3">
               <SaveStatus status={status} lastSavedAt={lastSavedAt} />
-              <span className={`inline-flex items-center gap-1 text-xs ${online ? 'text-subtle' : 'font-semibold text-danger'}`}>
-                {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-                {online ? 'Connected' : 'No connection'}
-              </span>
+              {online && (
+                <span className="hidden items-center gap-1 text-xs text-white/70 sm:inline-flex">
+                  <Wifi className="h-3.5 w-3.5" /> Connected
+                </span>
+              )}
             </div>
           </div>
-          {policy.enabled && policy.maxViolations > 0 && (
-            <Badge tone={violationCount === 0 ? 'neutral' : violationCount >= policy.maxViolations - 1 ? 'danger' : 'warn'} className="hidden sm:inline-flex">
-              <ShieldCheck className="h-3.5 w-3.5" /> Warnings {violationCount}/{policy.maxViolations}
-            </Badge>
-          )}
-          <Timer seconds={remaining} paused={locked} />
-          <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={locked}>
+          <div className="hidden h-[60px] w-[60px] shrink-0 flex-col items-center justify-center rounded-full bg-[#0b1220] text-white sm:flex" title="Answered">
+            <span className="font-display text-base font-bold leading-none tabular">
+              {answeredCount}
+              <span className="text-white/50">/{questions.length}</span>
+            </span>
+            <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-white/70">answered</span>
+          </div>
+          <div role="timer" aria-live={remaining <= 60 ? 'assertive' : 'off'} className="shrink-0 rounded-full bg-white/10 p-0.5">
+            <TimerRing remaining={remaining} total={total} size={60} paused={locked} onDark />
+          </div>
+          <button type="button" onClick={() => setConfirmOpen(true)} disabled={locked} className="btn shrink-0 bg-white px-5 text-[#0F62D9] shadow-sm hover:bg-white/90">
             Submit
-          </Button>
+          </button>
         </div>
-        <div className="h-1 bg-surface-2">
-          <div className="h-full bg-primary transition-all" style={{ width: `${(answeredCount / (questions.length || 1)) * 100}%` }} />
+        <div className="mx-auto flex max-w-6xl gap-1 px-4 pb-4 sm:px-6" aria-hidden>
+          {questions.map((x, i) => {
+            const a = answers[x._id];
+            return (
+              <button
+                key={x._id}
+                type="button"
+                tabIndex={-1}
+                onClick={() => setCurrent(i)}
+                className={`h-1.5 flex-1 rounded-full transition ${a?.flagged ? 'bg-warn' : isAnswered(a) ? 'bg-white' : 'bg-white/25 hover:bg-white/40'} ${i === current ? 'scale-y-[1.8]' : ''}`}
+              />
+            );
+          })}
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 lg:grid-cols-[1fr_17rem]">
+      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_18rem] lg:py-8">
         <main className="min-w-0">
           <div className="mb-4 lg:hidden">
             <Button size="sm" icon={Grid3x3} onClick={() => setPaletteOpen((o) => !o)}>
@@ -495,10 +533,10 @@ export default function ExamPage() {
               </div>
             )}
           </div>
-          <div className="card p-6 sm:p-8">
+          <div className="card rounded-3xl p-6 sm:p-8">
             {q && <QuestionView key={q._id} q={q} index={current} total={questions.length} answer={answers[q._id]} disabled={locked} noSelect={policy.enabled && policy.blockClipboard} onAnswer={(patch, opts) => update(q._id, patch, opts)} />}
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-5 flex flex-wrap items-center gap-2">
             <Button icon={ArrowLeft} disabled={current === 0} onClick={() => setCurrent((c) => c - 1)}>
               Previous
             </Button>
@@ -511,24 +549,27 @@ export default function ExamPage() {
                   Next <ArrowRight />
                 </Button>
               ) : (
-                <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={locked}>
-                  Review and submit
+                <Button variant="ink" onClick={() => setConfirmOpen(true)} disabled={locked}>
+                  Review & submit <Send />
                 </Button>
               )}
             </div>
           </div>
+          <p className="mt-4 hidden text-center text-xs text-subtle sm:block">
+            Use <span className="kbd">←</span> <span className="kbd">→</span> to move between questions
+          </p>
         </main>
         <aside className="hidden lg:block">
-          <div className="card sticky top-24 p-5">
-            <p className="mb-4 flex items-center justify-between text-sm font-semibold">
-              Questions
-              <span className="font-normal text-muted">
+          <div className="card sticky top-[148px] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-display text-sm font-semibold">Questions</p>
+              <span className="text-xs text-muted tabular">
                 {answeredCount}/{questions.length} answered
               </span>
-            </p>
+            </div>
             <Palette questions={questions} answers={answers} current={current} onJump={setCurrent} />
             {policy.enabled && (
-              <p className="mt-5 flex gap-2 border-t border-border pt-4 text-xs text-subtle">
+              <p className="mt-5 flex gap-2 rounded-xl bg-primary-soft p-3 text-xs text-primary-strong">
                 <ShieldCheck className="h-4 w-4 shrink-0" /> Proctored. Stay on this screen until you submit.
               </p>
             )}
@@ -551,15 +592,15 @@ export default function ExamPage() {
           }
         >
           <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-lg bg-success-soft p-3">
+            <div className="rounded-2xl bg-success-soft p-3">
               <p className="font-display text-2xl font-bold text-success">{answeredCount}</p>
               <p className="text-xs text-muted">answered</p>
             </div>
-            <div className={`rounded-lg p-3 ${unanswered.length ? 'bg-danger-soft' : 'bg-surface-2'}`}>
+            <div className={`rounded-2xl p-3 ${unanswered.length ? 'bg-danger-soft' : 'bg-surface-2'}`}>
               <p className={`font-display text-2xl font-bold ${unanswered.length ? 'text-danger' : 'text-muted'}`}>{unanswered.length}</p>
               <p className="text-xs text-muted">unanswered</p>
             </div>
-            <div className={`rounded-lg p-3 ${flagged ? 'bg-warn-soft' : 'bg-surface-2'}`}>
+            <div className={`rounded-2xl p-3 ${flagged ? 'bg-warn-soft' : 'bg-surface-2'}`}>
               <p className={`font-display text-2xl font-bold ${flagged ? 'text-warn' : 'text-muted'}`}>{flagged}</p>
               <p className="text-xs text-muted">for review</p>
             </div>
@@ -568,7 +609,7 @@ export default function ExamPage() {
             <p className="mt-4 text-sm text-muted">
               Unanswered:{' '}
               {unanswered.map((n) => (
-                <button key={n} type="button" className="mx-0.5 font-semibold text-primary underline-offset-2 hover:underline" onClick={() => (setCurrent(n - 1), setConfirmOpen(false))}>
+                <button key={n} type="button" className="mx-0.5 font-semibold text-primary-strong underline-offset-2 hover:underline" onClick={() => (setCurrent(n - 1), setConfirmOpen(false))}>
                   Q{n}
                 </button>
               ))}

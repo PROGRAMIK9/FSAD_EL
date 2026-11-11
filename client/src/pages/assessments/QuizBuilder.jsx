@@ -26,8 +26,9 @@ import { api } from '../../lib/api.js';
 import { useApi } from '../../hooks/useApi.js';
 import { QUIZ_MARKS, proctoringDefaults, proctoringPresets, quizFormSchema, suggestQuestions, sumMarks } from '../../lib/schemas.js';
 import { fmtDateTime, toLocalInput } from '../../lib/format.js';
-import { Alert, Badge, Button, Card, Drawer, EmptyState, Field, Input, PageHeader, ProgressBar, Select, Skeleton, Stepper, Switch, Textarea } from '../../components/ui/index.js';
+import { Alert, Badge, Button, Card, Drawer, EmptyState, Field, Input, PageHeader, Ring, Select, Skeleton, Stepper, Switch, Textarea } from '../../components/ui/index.js';
 import { QuestionPreview } from '../../components/domain/QuestionPreview.jsx';
+import { QuizCard } from '../../components/domain/QuizCard.jsx';
 import { PageLoader } from '../../components/layout/PageLoader.jsx';
 import { QuestionEditor } from '../questions/QuestionEditor.jsx';
 
@@ -95,16 +96,16 @@ function MarksMeter({ total }) {
   const done = total === QUIZ_MARKS;
   const over = total > QUIZ_MARKS;
   return (
-    <div className={`rounded-xl border p-4 ${done ? 'border-success/40 bg-success-soft/50' : over ? 'border-danger/40 bg-danger-soft/50' : 'border-border bg-surface-2/40'}`}>
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-muted">Total marks</span>
-        <span className={`font-display text-2xl font-extrabold ${done ? 'text-success' : over ? 'text-danger' : 'text-fg'}`}>
-          {total}
-          <span className="text-base text-muted"> / {QUIZ_MARKS}</span>
-        </span>
+    <div className={`flex items-center gap-4 rounded-2xl p-4 ring-1 ring-inset ${done ? 'bg-success-soft/60 ring-success/30' : over ? 'bg-danger-soft/60 ring-danger/30' : 'bg-surface-2/60 ring-border'}`}>
+      <Ring value={Math.min(total, QUIZ_MARKS)} max={QUIZ_MARKS} size={64} stroke={7} color={`rgb(var(--c-${done ? 'success' : over ? 'danger' : 'primary'}))`} label={`${total} of ${QUIZ_MARKS} marks`}>
+        <span className={`font-display text-base font-bold tabular ${done ? 'text-success' : over ? 'text-danger' : 'text-fg'}`}>{total}</span>
+      </Ring>
+      <div className="min-w-0">
+        <p className="font-display text-sm font-semibold">
+          Total marks <span className="text-muted">/ {QUIZ_MARKS}</span>
+        </p>
+        <p className="mt-0.5 text-xs text-muted">{done ? 'Ready. Quizzes are always worth exactly 10 marks.' : over ? `Remove ${total - QUIZ_MARKS} mark(s) to continue.` : `Add ${QUIZ_MARKS - total} more mark(s) to continue.`}</p>
       </div>
-      <ProgressBar className="mt-2" value={Math.min(total, QUIZ_MARKS)} max={QUIZ_MARKS} tone={done ? 'success' : over ? 'danger' : 'primary'} />
-      <p className="mt-2 text-xs text-muted">{done ? 'Ready. Quizzes are always worth exactly 10 marks.' : over ? `Remove ${total - QUIZ_MARKS} mark(s) to continue.` : `Add ${QUIZ_MARKS - total} more mark(s) to continue.`}</p>
     </div>
   );
 }
@@ -336,6 +337,22 @@ function ProctoringStep({ value, onChange, errors }) {
   );
 }
 
+/** The quiz as a student's card would show it, for the review step. */
+const previewQuiz = (values, subject, questionCount) => ({
+  _id: 'preview',
+  title: values.title || 'Untitled quiz',
+  subject: subject ? { code: subject.code, name: subject.name } : undefined,
+  questionCount,
+  maxMarks: QUIZ_MARKS,
+  durationMinutes: values.durationMinutes,
+  proctoring: values.proctoring,
+  availabilityMode: values.availabilityMode,
+  state: values.availabilityMode === 'room' ? 'SCHEDULED' : 'AVAILABLE',
+  attemptsAllowed: values.attemptsAllowed,
+  endsAt: values.endsAt,
+  myAttempts: {},
+});
+
 function ReviewStep({ values, subject, questions }) {
   const mode = MODES.find((m) => m.value === values.availabilityMode);
   const p = values.proctoring;
@@ -351,21 +368,29 @@ function ReviewStep({ values, subject, questions }) {
   ];
   return (
     <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
-      <Card className="h-fit">
-        <div className="border-b border-border p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Quiz · 10 marks</p>
-          <h2 className="mt-1 text-xl font-bold">{values.title}</h2>
-          {values.description && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{values.description}</p>}
+      <div className="space-y-6">
+        <div>
+          <p className="mb-2 font-display text-xs font-semibold uppercase tracking-wider text-muted">How students see it</p>
+          <div className="pointer-events-none select-none" aria-hidden>
+            <QuizCard hero a={previewQuiz(values, subject, questions.length)} />
+          </div>
         </div>
-        <dl className="divide-y divide-border text-sm">
-          {rows.map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-4 px-5 py-2.5">
-              <dt className="text-muted">{k}</dt>
-              <dd className="text-right font-medium">{v}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
+        <Card className="h-fit">
+          <div className="border-b border-border p-5">
+            <p className="font-display text-xs font-semibold uppercase tracking-wide text-primary-strong">Quiz · 10 marks</p>
+            <h2 className="mt-1 text-xl font-bold">{values.title}</h2>
+            {values.description && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{values.description}</p>}
+          </div>
+          <dl className="divide-y divide-border text-sm">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4 px-5 py-2.5">
+                <dt className="text-muted">{k}</dt>
+                <dd className="text-right font-medium">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      </div>
       <div className="space-y-3">
         <p className="text-sm font-semibold text-muted">Paper preview · {questions.length} questions</p>
         {questions.map((q, i) => (

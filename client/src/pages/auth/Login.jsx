@@ -6,6 +6,7 @@ import { loadGoogleIdentity } from '../../lib/google.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { Alert, Badge, Button, Spinner } from '../../components/ui/index.js';
+import { Brand } from '../../components/layout/AppShell.jsx';
 
 const features = [
   { icon: ClipboardCheck, title: 'Proctored quizzes', text: 'Timed, auto-saved and monitored live by faculty.' },
@@ -103,40 +104,40 @@ export default function Login() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      <section className="relative hidden overflow-hidden bg-sidebar p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-sky-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-blue-700/30 blur-3xl" />
-        <div className="relative flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-700 font-display text-xl font-extrabold">R</div>
-          <span className="font-display text-lg font-bold">RVCE Academic Hub</span>
+      <section className="card-hero m-3 hidden !rounded-[2rem] p-12 lg:flex lg:flex-col lg:justify-between">
+        <div className="pointer-events-none absolute -bottom-28 -left-20 -z-10 h-80 w-80 rounded-full bg-white/10" />
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white font-display text-xl font-extrabold text-[#0F62D9]">R</div>
+          <span className="font-display text-lg font-bold">
+            Academic Hub <span className="font-medium text-white/75">· RVCE</span>
+          </span>
         </div>
         <div className="relative max-w-md">
-          <h1 className="text-4xl font-extrabold leading-tight">Teaching, assessment and results in one place.</h1>
+          <h1 className="text-[2.6rem] font-bold leading-[1.1]">Teaching, assessment and results in one place.</h1>
           <ul className="mt-10 space-y-6">
             {features.map(({ icon: Icon, title, text }) => (
               <li key={title} className="flex gap-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10">
-                  <Icon className="h-5 w-5 text-sky-300" />
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-inset ring-white/25">
+                  <Icon className="h-5 w-5 text-white" />
                 </span>
                 <span>
-                  <span className="block font-semibold">{title}</span>
-                  <span className="text-sm text-sidebar-fg">{text}</span>
+                  <span className="block font-display font-semibold">{title}</span>
+                  <span className="text-sm text-white/85">{text}</span>
                 </span>
               </li>
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-sidebar-fg/60">R V College of Engineering, Bengaluru</p>
+        <p className="text-xs text-white/70">R V College of Engineering, Bengaluru</p>
       </section>
 
       <section className="relative flex items-center justify-center px-5 py-12">
         <Button variant="ghost" icon={theme === 'dark' ? Sun : Moon} onClick={toggle} className="absolute right-4 top-4" aria-label="Toggle theme" />
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-700 font-display text-xl font-extrabold text-white">R</div>
-            <span className="font-display text-lg font-bold">RVCE Academic Hub</span>
+            <Brand />
           </div>
-          <h2 className="text-3xl font-extrabold">Welcome back</h2>
+          <h2 className="text-3xl font-bold">Welcome back</h2>
           <p className="mt-2 text-muted">Sign in with your authorised RVCE Google account.</p>
           <div className="mt-8 flex min-h-[44px] items-center">
             <div ref={buttonRef} />

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, allow } from '../middleware/auth.js';
-import { AcademicCalendarEvent, Assessment, Attempt, Question, Subject } from '../models/index.js';
+import { AcademicCalendarEvent, Assessment, Attempt, Grade, Question, Subject } from '../models/index.js';
 import { audit } from '../utils/audit.js';
 import { notify } from '../services/notifications.js';
 import { teachesSubject, teachingSubjectIds } from '../services/access.js';
@@ -127,18 +127,29 @@ router.get(
       filter.state = { $in: ['SCHEDULED', 'AVAILABLE', 'LIVE', 'PAUSED', 'ENDED', 'COMPLETED', 'PUBLISHED'] };
     }
     const assessments = await Assessment.find(filter)
-      .select(req.user.role === 'student' ? '-questionIds' : '')
       .populate('subject', 'name code')
       .populate('creator', 'name')
       .sort({ startsAt: 1, createdAt: -1 })
       .lean();
+    for (const a of assessments) {
+      a.questionCount = a.questionIds?.length || 0;
+      if (req.user.role === 'student') delete a.questionIds;
+    }
     const ids = assessments.map((a) => a._id);
     if (req.user.role === 'student') {
-      const attempts = await Attempt.find({ assessment: { $in: ids }, student: req.user._id })
-        .select('assessment state attemptNumber submitReason')
-        .sort({ attemptNumber: -1 })
-        .lean();
+      const [attempts, grades] = await Promise.all([
+        Attempt.find({ assessment: { $in: ids }, student: req.user._id })
+          .select('assessment state attemptNumber submitReason')
+          .sort({ attemptNumber: -1 })
+          .lean(),
+        Grade.find({ assessment: { $in: ids }, student: req.user._id, publishedAt: { $ne: null } })
+          .select('assessment rawMarks maxMarks publishedAt')
+          .lean(),
+      ]);
       for (const a of assessments) {
+        const grade = grades.find((g) => g.assessment.equals(a._id));
+        if (grade)
+          a.myResult = { rawMarks: grade.rawMarks, maxMarks: grade.maxMarks, publishedAt: grade.publishedAt };
         const mine = attempts.filter((x) => x.assessment.equals(a._id));
         a.myAttempts = {
           count: mine.length,

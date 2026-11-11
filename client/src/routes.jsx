@@ -5,11 +5,28 @@ const Structure = lazy(() => import('./pages/structure/Structure.jsx'));
 const Subjects = lazy(() => import('./pages/subjects/Subjects.jsx'));
 const Assessments = lazy(() => import('./pages/assessments/Assessments.jsx'));
 const QuizBuilder = lazy(() => import('./pages/assessments/QuizBuilder.jsx'));
+const LiveMonitor = lazy(() => import('./pages/assessments/LiveMonitor.jsx'));
+const AttemptReview = lazy(() => import('./pages/assessments/AttemptReview.jsx'));
+const AttemptResult = lazy(() => import('./pages/results/AttemptResult.jsx'));
+const MyGrades = lazy(() => import('./pages/grades/MyGrades.jsx'));
+const Evaluation = lazy(() => import('./pages/grades/Evaluation.jsx'));
 const QuestionBank = lazy(() => import('./pages/questions/QuestionBank.jsx'));
 const ExamPage = lazy(() => import('./pages/exam/ExamPage.jsx'));
 const ExamRoom = lazy(() => import('./pages/exam/ExamRoom.jsx'));
 const AttemptRedirect = lazy(() => import('./pages/exam/ExamRoom.jsx').then((m) => ({ default: m.AttemptRedirect })));
-import * as Legacy from './pages/legacy/LegacyPages.jsx';
+
+/** Old pages keep their own stylesheet, scoped under `.legacy` and loaded only with them. */
+const legacy = (name) => {
+  const Page = lazy(() => import('./pages/legacy/LegacyPages.jsx').then((m) => ({ default: m[name] })));
+  return function LegacyPage(props) {
+    return (
+      <div className="legacy">
+        <Page {...props} />
+      </div>
+    );
+  };
+};
+const Legacy = Object.fromEntries(['Assignments', 'Announcements', 'CalendarPage', 'Notifications', 'Audit', 'SettingsPage'].map((n) => [n, legacy(n)]));
 
 const T = ['teacher', 'admin'];
 const A = ['admin'];
@@ -24,8 +41,11 @@ export const appRoutes = [
   { path: '/assessments', element: <Assessments /> },
   { path: '/assessments/new', element: <QuizBuilder key="new" />, roles: T },
   { path: '/assessments/:id/edit', element: <QuizBuilder key="edit" />, roles: T },
-  { path: '/evaluation', element: <Legacy.Evaluation />, roles: T },
-  { path: '/grades', element: <Legacy.Grades />, roles: ['student'] },
+  { path: '/assessments/:id/monitor', element: <LiveMonitor />, roles: T },
+  { path: '/assessments/:id/attempts/:attemptId', element: <AttemptReview />, roles: T },
+  { path: '/results/:assessmentId', element: <AttemptResult />, roles: ['student'] },
+  { path: '/evaluation', element: <Evaluation />, roles: T },
+  { path: '/grades', element: <MyGrades />, roles: ['student'] },
   { path: '/questions', element: <QuestionBank />, roles: T },
   { path: '/assignments', element: <Legacy.Assignments /> },
   { path: '/announcements', element: <Legacy.Announcements /> },

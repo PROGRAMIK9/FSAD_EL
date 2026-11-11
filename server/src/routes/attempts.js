@@ -2,13 +2,24 @@ import { randomInt } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, allow } from '../middleware/auth.js';
-import { Assessment, Attempt, Question, Room, Subject, User } from '../models/index.js';
+import {
+  Assessment,
+  Attempt,
+  Grade,
+  GradeReviewRequest,
+  Question,
+  Room,
+  Subject,
+  User,
+} from '../models/index.js';
+import { reviewAnswers } from '../services/grading.js';
 import { audit } from '../utils/audit.js';
 import { finalizeAttempt } from '../services/attempts.js';
 import { EVENT_TYPES, policyOf, recordViolation } from '../services/proctoring.js';
 import { toMonitor, toStudent } from '../services/realtime.js';
 import { teachesSubject } from '../services/access.js';
 import { httpError, oid, send, wrap } from '../utils/http.js';
+import { EXPORT_FORMATS, sendTable } from '../utils/export.js';
 
 const router = Router();
 const STUDENT_QUESTION_FIELDS = 'text type options marks topic';
@@ -222,13 +233,79 @@ router.get(
     }
     const at = await loadAttemptForTeacher(req.params.id, req.user);
     await at.populate('student', 'name usn email');
-    const questions = await Question.find({ _id: { $in: at.questionOrder } }).lean();
-    const byId = new Map(questions.map((q) => [String(q._id), q]));
+    const found = await Question.find({ _id: { $in: at.questionOrder } }).lean();
+    const byId = new Map(found.map((q) => [String(q._id), q]));
+    const questions = at.questionOrder.map((id) => byId.get(String(id))).filter(Boolean);
     send(res, {
       attempt: at,
       student: at.student,
-      questions: at.questionOrder.map((id) => byId.get(String(id))).filter(Boolean),
+      questions,
+      items: reviewAnswers(questions, at.answers),
       policy: policyOf(at.assessment),
+    });
+  }),
+);
+
+/**
+ * A student's graded attempt with correct answers. Available only after the
+ * teacher publishes the grade, so answers never leak while others can still write.
+ */
+router.get(
+  '/assessments/:id/my-result',
+  authenticate,
+  allow('student'),
+  wrap(async (req, res) => {
+    if (!oid(req.params.id)) throw httpError(400, 'Invalid id');
+    const grade = await Grade.findOne({
+      assessment: req.params.id,
+      student: req.user._id,
+      publishedAt: { $ne: null },
+    }).lean();
+    if (!grade?.attempt) throw httpError(404, 'This result has not been published yet');
+    const [assessment, at, attemptsUsed, review] = await Promise.all([
+      Assessment.findById(req.params.id)
+        .select('title maxMarks durationMinutes attemptsAllowed subject')
+        .populate('subject', 'name code')
+        .lean(),
+      Attempt.findOne({ _id: grade.attempt, student: req.user._id }).lean(),
+      Attempt.countDocuments({ assessment: req.params.id, student: req.user._id }),
+      GradeReviewRequest.findOne({ grade: grade._id }).sort({ createdAt: -1 }).lean(),
+    ]);
+    if (!assessment || !at) throw httpError(404, 'Result not found');
+    const questions = await Question.find({ _id: { $in: at.questionOrder } }).lean();
+    const byId = new Map(questions.map((q) => [String(q._id), q]));
+    send(res, {
+      assessment: {
+        id: String(assessment._id),
+        title: assessment.title,
+        subject: assessment.subject,
+        maxMarks: assessment.maxMarks,
+        durationMinutes: assessment.durationMinutes,
+      },
+      grade: {
+        id: String(grade._id),
+        rawMarks: grade.rawMarks,
+        maxMarks: grade.maxMarks,
+        feedback: grade.feedback,
+        publishedAt: grade.publishedAt,
+      },
+      attempt: {
+        id: String(at._id),
+        attemptNumber: at.attemptNumber,
+        attemptsUsed,
+        startedAt: at.startedAt,
+        submittedAt: at.submittedAt,
+        submitReason: at.submitReason,
+        violationCount: at.violationCount || 0,
+        score: at.score,
+      },
+      review: review && {
+        status: review.status,
+        message: review.message,
+        response: review.response,
+        createdAt: review.createdAt,
+      },
+      items: reviewAnswers(at.questionOrder.map((id) => byId.get(String(id))).filter(Boolean), at.answers),
     });
   }),
 );
@@ -438,11 +515,155 @@ router.get(
         endsAt: a.endsAt,
         availabilityMode: a.availabilityMode,
         questionCount: a.questionIds.length,
+        maxMarks: a.maxMarks,
         proctoring: policyOf(a),
       },
       roster,
       events,
     });
+  }),
+);
+
+const SUBMIT_REASON_TEXT = {
+  MANUAL: 'Submitted',
+  TIMEOUT: 'Time ran out',
+  ASSESSMENT_ENDED: 'Quiz ended',
+  PROCTORING_LIMIT: 'Auto-submitted (proctoring)',
+  TEACHER: 'Submitted by teacher',
+};
+const minutesBetween = (a, b) =>
+  a && b ? Math.round(((new Date(b) - new Date(a)) / 60000) * 10) / 10 : null;
+
+/**
+ * Quiz results as CSV or Excel. One row per enrolled student (latest attempt);
+ * the workbook adds a per-question breakdown and a summary sheet.
+ */
+router.get(
+  '/assessments/:id/results.:format',
+  authenticate,
+  allow('teacher', 'admin'),
+  wrap(async (req, res) => {
+    const { format } = req.params;
+    if (!EXPORT_FORMATS.includes(format)) throw httpError(404, 'Unknown export format');
+    const a = await loadAssessmentForTeacher(req.params.id, req.user);
+    const [students, attempts, grades, questions] = await Promise.all([
+      User.find({ _id: { $in: a.subject.students }, role: 'student' })
+        .select('name usn email')
+        .sort({ name: 1 })
+        .lean(),
+      Attempt.find({ assessment: a._id }).select('-optionOrders').sort({ attemptNumber: -1 }).lean(),
+      Grade.find({ assessment: a._id }).lean(),
+      Question.find({ _id: { $in: a.questionIds } }).lean(),
+    ]);
+    const latest = new Map();
+    for (const at of attempts) if (!latest.has(String(at.student))) latest.set(String(at.student), at);
+    const gradeOf = new Map(grades.map((g) => [String(g.student), g]));
+    const paper = a.questionIds.map((id) => questions.find((q) => q._id.equals(id))).filter(Boolean);
+    const max = a.maxMarks || 10;
+
+    const results = [];
+    const breakdown = [];
+    for (const s of students) {
+      const at = latest.get(String(s._id));
+      const grade = gradeOf.get(String(s._id));
+      const items = at ? reviewAnswers(paper, at.answers || []) : [];
+      const count = (st) => items.filter((i) => i.status === st).length;
+      const done = at && at.state !== 'IN_PROGRESS';
+      const score = grade?.rawMarks ?? (done ? at.score : null);
+      results.push({
+        name: s.name,
+        usn: s.usn,
+        email: s.email,
+        status: !at ? 'Not started' : done ? 'Submitted' : 'In progress',
+        attempt: at?.attemptNumber ?? null,
+        score,
+        max,
+        percent: score != null ? score / max : null,
+        correct: done ? count('correct') : null,
+        incorrect: done ? count('incorrect') : null,
+        skipped: done ? count('skipped') : null,
+        warnings: at ? at.violationCount || 0 : null,
+        reason: at?.submitReason ? SUBMIT_REASON_TEXT[at.submitReason] : '',
+        startedAt: at?.startedAt ?? null,
+        submittedAt: at?.submittedAt ?? null,
+        minutes: minutesBetween(at?.startedAt, at?.submittedAt),
+        published: grade?.publishedAt ? 'Yes' : 'No',
+      });
+      if (done) {
+        const row = { name: s.name, usn: s.usn, total: at.score };
+        items.forEach((i, n) => (row[`q${n + 1}`] = i.awarded));
+        breakdown.push(row);
+      }
+    }
+    const scores = results.filter((r) => r.status === 'Submitted' && r.score != null).map((r) => r.score);
+    const avg = scores.length
+      ? Math.round((scores.reduce((n, x) => n + x, 0) / scores.length) * 100) / 100
+      : null;
+
+    const sheets = [
+      {
+        name: 'Results',
+        columns: [
+          { header: 'Student', key: 'name', width: 24 },
+          { header: 'USN', key: 'usn', width: 14 },
+          { header: 'Email', key: 'email', width: 28 },
+          { header: 'Status', key: 'status', width: 13 },
+          { header: 'Attempt', key: 'attempt', width: 9, format: 'number' },
+          { header: 'Score', key: 'score', width: 8, format: 'number' },
+          { header: 'Max', key: 'max', width: 6, format: 'number' },
+          { header: 'Percentage', key: 'percent', width: 11, format: 'percent' },
+          { header: 'Correct', key: 'correct', width: 9 },
+          { header: 'Incorrect', key: 'incorrect', width: 10 },
+          { header: 'Skipped', key: 'skipped', width: 9 },
+          { header: 'Warnings', key: 'warnings', width: 10 },
+          { header: 'Submission', key: 'reason', width: 24 },
+          { header: 'Started', key: 'startedAt', width: 18, format: 'datetime' },
+          { header: 'Submitted', key: 'submittedAt', width: 18, format: 'datetime' },
+          { header: 'Time taken (min)', key: 'minutes', width: 16, format: 'number' },
+          { header: 'Published', key: 'published', width: 10 },
+        ],
+        rows: results,
+      },
+      {
+        name: 'Question breakdown',
+        columns: [
+          { header: 'Student', key: 'name', width: 24 },
+          { header: 'USN', key: 'usn', width: 14 },
+          ...paper.map((q, n) => ({
+            header: `Q${n + 1} (${q.marks})`,
+            key: `q${n + 1}`,
+            width: 9,
+            format: 'number',
+          })),
+          { header: `Total (${max})`, key: 'total', width: 10, format: 'number' },
+        ],
+        rows: breakdown,
+      },
+      {
+        name: 'Summary',
+        columns: [
+          { header: 'Field', key: 'k', width: 22 },
+          { header: 'Value', key: 'v', width: 40 },
+        ],
+        rows: [
+          ['Quiz', a.title],
+          ['Subject', `${a.subject.code} · ${a.subject.name}`],
+          ['Duration (min)', a.durationMinutes],
+          ['Maximum marks', max],
+          ['Questions', paper.length],
+          ['Enrolled', students.length],
+          ['Submitted', scores.length],
+          ['Average', avg],
+          ['Highest', scores.length ? Math.max(...scores) : null],
+          ['Lowest', scores.length ? Math.min(...scores) : null],
+          ['Exported at', new Date()],
+        ].map(([k, v]) => ({ k, v })),
+      },
+    ];
+    const base = a.title.toLowerCase().startsWith(a.subject.code.toLowerCase())
+      ? a.title
+      : `${a.subject.code}-${a.title}`;
+    await sendTable(res, format, `${base}-results`, sheets);
   }),
 );
 

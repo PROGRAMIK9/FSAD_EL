@@ -21,7 +21,7 @@ const origin = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',')
 app.disable('x-powered-by');
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
 app.use(helmet());
-app.use(cors({ origin, credentials: true }));
+app.use(cors({ origin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(

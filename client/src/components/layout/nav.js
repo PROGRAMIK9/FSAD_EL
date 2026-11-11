@@ -61,6 +61,8 @@ export const titleFor = (pathname) => {
   for (const g of navGroups) for (const i of g.items) if (i.to === pathname) return i.label;
   if (pathname.startsWith('/assessments/new')) return 'New quiz';
   if (pathname.includes('/monitor')) return 'Live monitor';
+  if (pathname.includes('/attempts/')) return 'Attempt review';
+  if (pathname.startsWith('/results/')) return 'Result';
   if (pathname.startsWith('/assessments/')) return 'Assessments';
   if (pathname.startsWith('/rooms/')) return 'Exam room';
   return 'Academic Hub';

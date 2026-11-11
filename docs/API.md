@@ -6,12 +6,12 @@ Base URL: `/api`. JSON responses use `{ "ok": true, "data": ... }`; failures use
 
 - `GET /health`
 - `POST /auth/google`, `POST /auth/logout`, `GET /auth/me`
-- Admin: `GET /admin/dashboard`, `GET|POST /admin/users`, `PATCH /admin/users/:id`, `POST /admin/users/import/preview`, `POST /admin/users/import`, `GET|POST /admin/departments`, `GET|POST /admin/academic-years`, `GET|POST /admin/semesters`, `GET|POST /admin/sections`, `POST /admin/subjects`, `PATCH /admin/subjects/:id/allocations`, `GET /admin/audit-logs`, `GET /admin/reports/grades.csv`
+- Admin: `GET /admin/dashboard`, `GET|POST /admin/users`, `PATCH /admin/users/:id`, `POST /admin/users/import/preview`, `POST /admin/users/import`, `GET|POST /admin/departments`, `GET|POST /admin/academic-years`, `GET|POST /admin/semesters`, `GET|POST /admin/sections`, `POST /admin/subjects`, `PATCH /admin/subjects/:id/allocations`, `GET /admin/audit-logs`, `GET /admin/reports/grades.csv|xlsx`
 - Subjects: `GET /subjects`, `GET /subjects/:id/students`
 - Questions: `GET|POST /questions`
-- Assessments: `GET|POST /assessments`, `POST /assessments/:id/publish|pause|resume|end`, `GET /assessments/:id/attempts`, `POST /assessments/:id/start`
-- Attempts: `GET /attempts/:id`, `PATCH /attempts/:id/answers`, `POST /attempts/:id/proctoring-events|extend|evaluate|submit`
-- Grades: `GET /grades/student`, `GET /grades/assessment/:id`, `POST /grades/:id/publish|review`, `PATCH /grade-reviews/:id`
+- Assessments: `GET|POST /assessments`, `GET|PATCH|DELETE /assessments/:id`, `POST /assessments/:id/publish|pause|resume|end`, `GET /assessments/:id/attempts`, `GET /assessments/:id/monitor` (teacher roster and proctoring events), `POST /assessments/:id/start`, `GET /assessments/:id/my-result` (student; per-question review once their grade is published), `GET /assessments/:id/results.csv|xlsx` (teacher, admin; results, per-question marks and summary sheets)
+- Attempts: `GET /attempts/:id` (teacher response includes a per-question `items` breakdown), `PATCH /attempts/:id/answers`, `POST /attempts/:id/proctoring-events|extend|force-submit|message|submit`
+- Grades: `GET /grades/student`, `GET /grades/student/export.csv|xlsx`, `GET /grades/assessment/:id`, `POST /grades/:id/publish|review`, `PATCH /grade-reviews/:id`
 - Rooms: `POST /rooms`, `POST /rooms/join`
 - Assignments: `GET|POST /assignments`, `POST /assignments/:id/submit` (authenticated, up to 20 MB with assignment-level MIME and size limits), `GET /assignments/:id/submissions`, `GET /assignments/submissions/:submissionId/download`, `PATCH /assignments/:id/submissions/:submissionId/evaluate`
 - Assessment templates: `GET|POST /assessment-templates`, `DELETE /assessment-templates/:id`

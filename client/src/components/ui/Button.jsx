@@ -7,13 +7,15 @@ const variants = {
   secondary: 'btn-secondary',
   ghost: 'btn-ghost',
   danger: 'btn-danger',
+  ink: 'btn-ink',
 };
+const sizes = { sm: 'btn-sm', lg: 'btn-lg' };
 
 export const Button = forwardRef(function Button(
   { variant = 'secondary', size, icon: Icon, loading = false, to, className = '', children, disabled, ...props },
   ref,
 ) {
-  const cls = `btn ${variants[variant]} ${size === 'sm' ? 'btn-sm' : ''} ${!children ? 'btn-icon' : ''} ${className}`;
+  const cls = `btn ${variants[variant]} ${sizes[size] || ''} ${!children ? 'btn-icon' : ''} ${className}`;
   const content = (
     <>
       {loading ? <Spinner className="h-4 w-4" /> : Icon ? <Icon aria-hidden /> : null}

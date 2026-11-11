@@ -1,7 +1,7 @@
-/** Segmented tab control. items: [{ value, label, count?, icon? }] */
+/** Segmented pill control. items: [{ value, label, count?, icon? }] */
 export function Tabs({ items, value, onChange, className = '' }) {
   return (
-    <div role="tablist" className={`inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border border-border bg-surface-2/70 p-1 scrollbar-thin ${className}`}>
+    <div role="tablist" className={`inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-surface-2 p-1 scrollbar-thin ${className}`}>
       {items.map(({ value: v, label, count, icon: Icon }) => {
         const active = v === value;
         return (
@@ -11,11 +11,15 @@ export function Tabs({ items, value, onChange, className = '' }) {
             type="button"
             aria-selected={active}
             onClick={() => onChange(v)}
-            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition ${active ? 'bg-surface text-fg shadow-sm' : 'text-muted hover:text-fg'}`}
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+              active ? 'bg-surface text-fg shadow-card' : 'text-muted hover:text-fg'
+            }`}
           >
-            {Icon && <Icon className="h-4 w-4" />}
+            {Icon && <Icon className={`h-4 w-4 ${active ? 'text-primary' : ''}`} />}
             {label}
-            {count !== undefined && <span className={`rounded-full px-1.5 text-xs ${active ? 'bg-primary-soft text-primary' : 'bg-border/60'}`}>{count}</span>}
+            {count !== undefined && (
+              <span className={`min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold tabular ${active ? 'bg-primary text-white' : 'bg-border/70 text-muted'}`}>{count}</span>
+            )}
           </button>
         );
       })}

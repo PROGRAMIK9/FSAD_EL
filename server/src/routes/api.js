@@ -33,7 +33,8 @@ import { audit } from '../utils/audit.js';
 import { parseCSV } from '../utils/csv.js';
 import { notify } from '../services/notifications.js';
 import { transitionAssessment } from '../services/assessment-lifecycle.js';
-import { wrap, send, oid } from '../utils/http.js';
+import { wrap, send, oid, httpError } from '../utils/http.js';
+import { EXPORT_FORMATS, sendTable } from '../utils/export.js';
 import dashboardRoutes from './dashboard.js';
 import assessmentRoutes from './assessments.js';
 import questionRoutes from './questions.js';
@@ -715,7 +716,7 @@ router.post(
     await notify(req.app, [g.student], {
       title: 'Grade published',
       body: `Your result for ${g.assessment.title} is available.`,
-      href: '/grades',
+      href: `/results/${g.assessment._id}`,
     });
     send(res, g);
   }),
@@ -1116,31 +1117,80 @@ router.post(
     );
   }),
 );
+const GRADE_COLUMNS = [
+  { header: 'Assessment', key: 'title', width: 32 },
+  { header: 'Subject', key: 'subject', width: 10 },
+  { header: 'Marks', key: 'marks', width: 8, format: 'number' },
+  { header: 'Maximum', key: 'max', width: 10, format: 'number' },
+  { header: 'Percentage', key: 'percent', width: 11, format: 'percent' },
+  { header: 'Published', key: 'publishedAt', width: 18, format: 'datetime' },
+];
+const gradeRow = (g) => ({
+  title: g.assessment?.title,
+  subject: g.assessment?.subject?.code,
+  marks: g.rawMarks,
+  max: g.maxMarks,
+  percent: g.maxMarks ? g.rawMarks / g.maxMarks : null,
+  publishedAt: g.publishedAt,
+  feedback: g.feedback,
+});
+
 router.get(
-  '/admin/reports/grades.csv',
+  '/grades/student/export.:format',
+  authenticate,
+  allow('student'),
+  wrap(async (req, res) => {
+    if (!EXPORT_FORMATS.includes(req.params.format)) throw httpError(404, 'Unknown export format');
+    const grades = await Grade.find({ student: req.user._id, publishedAt: { $ne: null } })
+      .populate({
+        path: 'assessment',
+        select: 'title subject',
+        populate: { path: 'subject', select: 'code' },
+      })
+      .sort({ publishedAt: -1 })
+      .lean();
+    await sendTable(res, req.params.format, `${req.user.usn || 'my'}-grades`, [
+      {
+        name: 'My grades',
+        columns: [...GRADE_COLUMNS, { header: 'Feedback', key: 'feedback', width: 40 }],
+        rows: grades.map(gradeRow),
+      },
+    ]);
+  }),
+);
+
+router.get(
+  '/admin/reports/grades.:format',
   authenticate,
   allow('admin'),
   wrap(async (req, res) => {
+    if (!EXPORT_FORMATS.includes(req.params.format)) throw httpError(404, 'Unknown export format');
     const grades = await Grade.find({ publishedAt: { $ne: null } })
       .populate('student', 'name usn email')
-      .populate('assessment', 'title maxMarks');
-    const csv = [
-      'Student,USN,Email,Assessment,Marks,Maximum,Published',
-      ...grades.map((g) =>
-        [
-          g.student?.name,
-          g.student?.usn,
-          g.student?.email,
-          g.assessment?.title,
-          g.rawMarks,
-          g.maxMarks,
-          g.publishedAt?.toISOString(),
-        ]
-          .map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`)
-          .join(','),
-      ),
-    ].join('\n');
-    res.type('text/csv').attachment('rvce-grades.csv').send(csv);
+      .populate({
+        path: 'assessment',
+        select: 'title subject',
+        populate: { path: 'subject', select: 'code' },
+      })
+      .sort({ publishedAt: -1 })
+      .lean();
+    await sendTable(res, req.params.format, 'rvce-grades', [
+      {
+        name: 'Published grades',
+        columns: [
+          { header: 'Student', key: 'name', width: 24 },
+          { header: 'USN', key: 'usn', width: 14 },
+          { header: 'Email', key: 'email', width: 28 },
+          ...GRADE_COLUMNS,
+        ],
+        rows: grades.map((g) => ({
+          ...gradeRow(g),
+          name: g.student?.name,
+          usn: g.student?.usn,
+          email: g.student?.email,
+        })),
+      },
+    ]);
   }),
 );
 export default router;
