@@ -37,6 +37,10 @@ const subjectSchema = new Schema(
     coordinator: { type: Schema.Types.ObjectId, ref: 'User' },
     teachers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     students: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    /** Scheme and syllabus details: units, lab, outcomes, references, evaluation. */
+    syllabus: { type: Schema.Types.Mixed },
+    /** New students are enrolled automatically when they first sign in. */
+    autoEnroll: { type: Boolean, default: false },
     archivedAt: Date,
   },
   opts,

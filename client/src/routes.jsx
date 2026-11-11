@@ -3,6 +3,7 @@ const Dashboard = lazy(() => import('./pages/dashboard/Dashboard.jsx'));
 const People = lazy(() => import('./pages/people/People.jsx'));
 const Structure = lazy(() => import('./pages/structure/Structure.jsx'));
 const Subjects = lazy(() => import('./pages/subjects/Subjects.jsx'));
+const SubjectDetail = lazy(() => import('./pages/subjects/SubjectDetail.jsx'));
 const Assessments = lazy(() => import('./pages/assessments/Assessments.jsx'));
 const QuizBuilder = lazy(() => import('./pages/assessments/QuizBuilder.jsx'));
 const LiveMonitor = lazy(() => import('./pages/assessments/LiveMonitor.jsx'));
@@ -38,6 +39,7 @@ export const appRoutes = [
   { path: '/teachers', element: <People key="teacher" role="teacher" />, roles: A },
   { path: '/structure', element: <Structure />, roles: A },
   { path: '/subjects', element: <Subjects /> },
+  { path: '/subjects/:id', element: <SubjectDetail /> },
   { path: '/assessments', element: <Assessments /> },
   { path: '/assessments/new', element: <QuizBuilder key="new" />, roles: T },
   { path: '/assessments/:id/edit', element: <QuizBuilder key="edit" />, roles: T },

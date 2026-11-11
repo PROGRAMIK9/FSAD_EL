@@ -13,6 +13,7 @@ const schema = z.object({
   semester: z.union([z.literal(''), z.coerce.number().int().min(1).max(12)]).optional(),
   section: z.string().trim().max(4).optional(),
   isActive: z.boolean(),
+  role: z.enum(['admin', 'teacher', 'student']).optional(),
 });
 
 /** Create (no `user`) or edit (with `user`) a student/teacher account. */
@@ -34,20 +35,22 @@ export function UserFormModal({ role, user, departments, onClose, onSaved }) {
       semester: user?.semester ?? '',
       section: user?.section || '',
       isActive: user?.isActive ?? true,
+      role: user?.role || role,
     },
   });
 
   const submit = handleSubmit(async (values) => {
     const body = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== '' && v !== undefined));
     if (role === 'student' && body.usn) body.usn = body.usn.toUpperCase();
+    if (!editing || body.role === user.role) delete body.role;
     try {
       if (editing) await api.patch(`/admin/users/${user._id}`, body);
       else {
-        const { isActive, ...rest } = body;
+        const { isActive, role: _ignored, ...rest } = body;
         const created = await api.post('/admin/users', { ...rest, role });
         if (!isActive) await api.patch(`/admin/users/${created.user._id}`, { isActive: false });
       }
-      toast.success(editing ? 'Account updated' : 'Account created');
+      toast.success(editing ? (body.role ? `Account updated: now a ${body.role}` : 'Account updated') : 'Account created');
       onSaved();
     } catch (err) {
       toast.error(String(err));
@@ -87,7 +90,14 @@ export function UserFormModal({ role, user, departments, onClose, onSaved }) {
             <Input label="Section" placeholder="A" error={errors.section?.message} {...register('section')} />
           </>
         )}
-        <div className="rounded-lg border border-border p-3 sm:col-span-2">
+        {editing && (
+          <Select label="Role" className="sm:col-span-2" hint="New sign-ins start as students. Change the role here to give teacher or admin access." {...register('role')}>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Administrator</option>
+          </Select>
+        )}
+        <div className="rounded-xl border border-border p-3 sm:col-span-2">
           <Switch label="Active account" description="Inactive accounts cannot sign in." checked={watch('isActive')} onChange={(v) => setValue('isActive', v)} />
         </div>
       </div>

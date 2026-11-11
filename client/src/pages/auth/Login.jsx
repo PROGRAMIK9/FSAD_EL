@@ -11,7 +11,7 @@ import { Brand } from '../../components/layout/AppShell.jsx';
 const features = [
   { icon: ClipboardCheck, title: 'Proctored quizzes', text: 'Timed, auto-saved and monitored live by faculty.' },
   { icon: BarChart3, title: 'Results & analytics', text: 'Instant scoring with question-level insight.' },
-  { icon: ShieldCheck, title: 'Institution sign-in', text: 'Only pre-provisioned RVCE accounts can enter.' },
+  { icon: ShieldCheck, title: 'Institution sign-in', text: 'Sign in with your RVCE Google account; students are set up automatically.' },
 ];
 
 function DevLogin({ onSignedIn }) {
@@ -85,6 +85,7 @@ export default function Login() {
             setBusy(true);
             try {
               const result = await api.post('/auth/google', { credential: response.credential });
+              if (result.created) toast.success(`Welcome, ${result.user.name.split(' ')[0]}! Your student account is ready.`, { duration: 6000 });
               setUser(result.user);
             } catch (err) {
               toast.error(String(err));
@@ -150,11 +151,11 @@ export default function Login() {
           )}
           {!clientId && (
             <Alert tone="warn" title="Google sign-in is not configured" className="mt-2">
-              Set <code className="font-mono">VITE_GOOGLE_CLIENT_ID</code> and the matching server <code className="font-mono">GOOGLE_CLIENT_ID</code>. Accounts must be provisioned by an administrator.
+              Set <code className="font-mono">VITE_GOOGLE_CLIENT_ID</code> and the matching server <code className="font-mono">GOOGLE_CLIENT_ID</code>.
             </Alert>
           )}
           <DevLogin onSignedIn={setUser} />
-          <p className="mt-10 text-xs leading-relaxed text-subtle">Only verified, pre-provisioned accounts from configured RVCE domains can sign in. Contact your department administrator for access.</p>
+          <p className="mt-10 text-xs leading-relaxed text-subtle">Any verified account from an approved RVCE domain can sign in. New accounts start as students; your department administrator assigns teacher or admin access.</p>
         </div>
       </section>
     </div>

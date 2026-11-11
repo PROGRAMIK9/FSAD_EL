@@ -12,4 +12,4 @@ Back up MongoDB with `mongodump --uri "$MONGODB_URI" --out ./backup`; restore wi
 
 Google OAuth requires an institution configured client ID. The default allowed email domain is `rvce.edu.in`. Each quiz is fixed at 10 marks and supports MCQ or single-line fill-in questions; the selected question marks must total 10.
 
-The sample seed data uses `.invalid` identities, keeps all sample accounts inactive, and must not be treated as real RVCE users.
+`npm run seed -w server` loads the real MCA semester III scheme and syllabus and creates the administrator account; it creates no passwords and no other users. Students are created on their first Google sign-in.

@@ -216,7 +216,7 @@ export, while keeping the experience simple enough for students to use on any de
 
 \section{Objectives}
 \begin{enumerate}
-  \item Provide role-based access for administrators, teachers and students, restricted to pre-provisioned institutional accounts.
+  \item Provide role-based access for administrators, teachers and students, restricted to institutional Google accounts, with first-time users created automatically as students.
   \item Let teachers build quizzes worth exactly 10 marks from multiple-choice and single-line fill-in questions, and schedule them or run them in a live room.
   \item Give students a distraction-free exam screen with a server-synchronised timer, automatic saving and recovery from network loss.
   \item Detect and record browser-level integrity events, apply a configurable warning policy, and submit automatically at the limit.
@@ -259,7 +259,7 @@ project and Appendix~\ref{app:api} lists the API endpoints.
 \toprule
 \textbf{ID} & \textbf{Requirement}\\ \midrule
 \endhead
-FR1 & Users sign in with an institutional Google account; only pre-provisioned, approved accounts are admitted. A development-only sign-in picker can be enabled locally.\\
+FR1 & Users sign in with an institutional Google account. A first sign-in from an allowed domain creates an active student account automatically; administrators assign teacher and administrator roles. A development-only sign-in picker can be enabled locally.\\
 FR2 & Each request is authorised by role and, for teachers, by allocation to the subject concerned.\\
 FR3 & Teachers create questions (single-correct MCQ or single-line fill-in) with marks in steps of 0.5, difficulty, topic and explanation.\\
 FR4 & A quiz can be saved only when its questions total exactly 10 marks; drafts can be edited until published.\\
@@ -454,7 +454,7 @@ Server $\rightarrow$ student & \code{attempt:message}, \code{extended}, \code{fo
 
 \section{Authentication and authorisation}
 Users sign in with Google Identity Services. The server verifies the ID token with google-auth-library, checks the
-allowed domain (\code{rvce.edu.in} by default) and requires the account to exist, be active and be approved. A signed
+allowed domain (\code{rvce.edu.in} by default). A verified address that signs in for the first time is created as an active student and the event is written to the audit log; administrators later change the role to teacher or administrator from the people pages. Accounts that an administrator has disabled or rejected remain blocked. A signed
 JWT is stored in an HTTP-only, SameSite=Lax cookie. Middleware \code{authenticate} loads the user on each request and
 \code{allow(...roles)} rejects other roles; teacher routes also check that the teacher is allocated to the subject.
 For local development a sign-in picker can be enabled with \code{DEV_LOGIN=true}; it is ignored when
@@ -549,7 +549,7 @@ The interface was redesigned after a contemporary quiz-application concept and a
 \section{Developer experience}
 \code{run.sh} starts the whole system with one command. On the first run it creates a local \code{.env} with a random
 JWT secret, installs dependencies, starts MongoDB (a local \code{mongod} with data in \code{.data/}, or Docker
-Compose), seeds sample data when the database is empty, and runs the API and the client together. It also offers
+Compose), loads the MCA semester III scheme when the database is empty, and runs the API and the client together. It also offers
 \code{setup}, \code{seed}, \code{test}, \code{build} and \code{stop} commands (Appendix~\ref{app:run}).
 
 % =====================================================================
@@ -557,7 +557,7 @@ Compose), seeds sample data when the database is empty, and runs the API and the
 \label{ch:test}
 
 \section{Automated tests}
-Server tests use the Node.js test runner and Supertest. All 20 tests pass (Table~\ref{tab:tests}).
+Server tests use the Node.js test runner and Supertest. All 27 tests pass (Table~\ref{tab:tests}).
 
 \begin{table}[htbp]\centering
 \caption{Automated test suites}\label{tab:tests}
@@ -566,6 +566,7 @@ Server tests use the Node.js test runner and Supertest. All 20 tests pass (Table
 \toprule
 \textbf{Suite} & \textbf{Tests} & \textbf{What is verified}\\ \midrule
 \code{proctoring.test.js} & 9 & Warning classification; one tab switch counted once; repeats after the merge window; fullscreen rule; disabled proctoring; limit at \code{maxViolations}; policy defaults\\
+\code{auth.test.js} & 7 & Allowed domains and allowlist; first sign-in creates an active student; name fallback; existing roles kept; disabled or rejected accounts blocked; unverified or outside-domain emails rejected; concurrent first sign-ins\\
 \code{grading.test.js} & 4 & MCQ and fill-in scoring; case and whitespace normalisation; per-question review statuses\\
 \code{export.test.js} & 3 & CSV BOM, quoting and line endings; formula-injection guard; XLSX round trip with typed values and header style\\
 \code{csv.test.js} & 2 & Quoted commas, escaped quotes, CRLF; unterminated fields rejected\\
@@ -657,7 +658,7 @@ git clone <repository-url> && cd FSAD_EL
 \textbf{Command} & \textbf{Effect}\\ \midrule
 \code{./run.sh} & Create \code{.env} on first run, install dependencies, start MongoDB, seed an empty database, run API and client\\
 \code{./run.sh setup} & Create \code{.env} and install dependencies only\\
-\code{./run.sh seed} & Reload sample accounts, subjects and quizzes\\
+\code{./run.sh seed} & Load the MCA semester III subjects, syllabus, question bank and quiz drafts\\
 \code{./run.sh test} & Run the server test suite\\
 \code{./run.sh build} & Build the client into \code{client/dist}\\
 \code{./run.sh stop} & Stop the MongoDB started by the script\\
@@ -665,7 +666,7 @@ git clone <repository-url> && cd FSAD_EL
 \end{tabularx}
 \end{table}
 
-\noindent The generated \code{.env} enables the development sign-in picker and is for local use only. Production
+\noindent The generated \code{.env} is for local use only; Google sign-in needs the institution's OAuth client ID. Production
 settings (Google client ID, allowed domains, secure cookies behind a proxy) are described in \code{docs/DEPLOYMENT.md}.
 
 \chapter{API Endpoints}

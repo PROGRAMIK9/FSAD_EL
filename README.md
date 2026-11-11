@@ -10,18 +10,18 @@ This guide is intended to help a developer orient themselves in the repository, 
 ./run.sh
 ```
 
-On the first run this creates a local `.env` (random JWT secret, local MongoDB, sign-in picker enabled), installs dependencies, starts MongoDB (a local `mongod` with data in `.data/`, or Docker Compose when `mongod` is not installed), loads sample accounts if the database is empty, and starts the API on <http://localhost:4000/api> and the app on <http://localhost:5173>. Pick a sample admin, teacher or student on the sign-in page. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop; the MongoDB started by the script stops with it.
+On the first run this creates a local `.env` (random JWT secret, local MongoDB), installs dependencies, starts MongoDB (a local `mongod` with data in `.data/`, or Docker Compose when `mongod` is not installed), loads the MCA semester III subjects, syllabus and quiz drafts if the database is empty, and starts the API on <http://localhost:4000/api> and the app on <http://localhost:5173>. Sign in with an RVCE Google account (set `GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_ID` in `.env`). Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop; the MongoDB started by the script stops with it.
 
 | Command | What it does |
 |---|---|
 | `./run.sh` | Set up if needed, start MongoDB, seed an empty database, run API and client |
 | `./run.sh setup` | Create `.env` and install dependencies only |
-| `./run.sh seed` | Reload the sample accounts, subjects and quizzes |
+| `./run.sh seed` | Load the MCA semester III subjects, syllabus, question bank and quiz drafts |
 | `./run.sh test` | Run the server tests |
 | `./run.sh build` | Build the client into `client/dist` |
 | `./run.sh stop` | Stop a MongoDB left running by the script |
 
-Requirements: Node.js 20+, and either MongoDB 7 (`mongod`) or Docker. The generated `.env` is for local development only; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for production settings.
+Requirements: Node.js 20+, and either MongoDB 7 (`mongod`) or Docker. The generated `.env` is for local development only and keeps the sign-in picker (`DEV_LOGIN`) off, because the database holds a real administrator account; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for production settings.
 
 **Exporting results.** Teachers download a quiz's results from *Evaluation* or the quiz report (**Export → Excel workbook / CSV**). The workbook has a results sheet, a per-question marks sheet and a summary. Students download their published grades from *My grades*; admins download every published grade from the dashboard.
 
@@ -29,7 +29,7 @@ The project report (LaTeX, Times New Roman 12 pt) is in [docs/report](docs/repor
 
 ## Product scope
 
-- Google sign-in for pre-provisioned accounts. The default allowed domain is `rvce.edu.in`; explicit email exceptions can be configured.
+- Google sign-in for the institution's accounts. The default allowed domain is `rvce.edu.in`; explicit email exceptions can be configured. A first sign-in creates the account as a student automatically; administrators promote teachers and admins.
 - Three application roles: `admin`, `teacher`, and `student`.
 - Academic organization: departments, academic years, semesters, sections, subjects, teacher assignments, and student enrollments.
 - Quizzes are fixed at **10 marks**. Supported question types are one-correct-answer multiple choice and single-line fill-in-the-blank. A quiz can be created only when the selected questions total exactly 10 marks. Fill-in answers are compared after trimming outer whitespace and ignoring letter case.
@@ -72,7 +72,7 @@ The repository is one npm workspace with two deployable applications. The server
 │   ├── src/middleware/             Authentication and assignment upload handling
 │   ├── src/services/               Auth, grading, attempts, notifications, lifecycle
 │   ├── src/utils/                  Audit and CSV parsing helpers
-│   ├── src/scripts/seed.js         Inactive example data
+│   ├── src/scripts/seed.js         Real MCA semester III data (from src/data/)
 │   └── test/                       Node test-runner tests
 ├── docs/
 │   ├── API.md                      Endpoint overview
@@ -99,7 +99,7 @@ The client uses a same-site HTTP-only cookie for browser sessions; application J
 
 Services hold logic shared across routes or process events:
 
-- `auth.js`: verifies Google ID tokens, checks verified email/domain/allowlist, finds the pre-provisioned active account, and signs a JWT.
+- `auth.js`: verifies Google ID tokens, checks verified email/domain/allowlist, finds the account (creating an active student on first sign-in), and signs a JWT.
 - `grading.js`: compares answers and calculates objective quiz marks.
 - `attempts.js`: finalizes submitted attempts, creates/updates grades, and sweeps expired attempts.
 - `assessment-lifecycle.js`: pauses/resumes timers, updates room state, and finalizes attempts when a quiz ends.
@@ -217,17 +217,15 @@ npm run dev
 
 The root `dev` script starts the API and Vite client concurrently. Open <http://localhost:5173>; check API health at <http://localhost:4000/api/health>. For a full Compose deployment, use `docker compose up --build` and the Compose-provided MongoDB URI.
 
-### Provisioning users and sample data
+### Users, roles and academic data
 
-The seed script creates example academic records and `.invalid` example identities; it does not create a usable administrator or a login backdoor. Allowed users are provisioned as students on first Google sign-in. An administrator must assign staff roles and academic relationships through the admin tools or a controlled database operation; do not put real accounts or passwords in the seed script.
+- **Administrator:** `maaryamannp.mca25@rvce.edu.in` is created by the seed as the administrator and signs in with Google.
+- **Students:** anyone with a verified `@rvce.edu.in` address (or an `ALLOWED_EMAILS` entry) who signs in for the first time becomes an active student and is enrolled in every current-semester subject (subjects marked `autoEnroll`). The administrator removes electives a student did not choose from *Subjects -> Allocations*.
+- **Teachers:** the administrator opens *Students*, edits the person and changes the role to *Teacher* (or *Administrator*), then allocates them to subjects.
 
-Run sample seeding with:
+`npm run seed -w server` (or `./run.sh seed`) loads the real MCA 2024-scheme semester III data from `server/src/data/`, transcribed from `scheme-syllabus/MCA-24-Scheme-3rd-Semester.pdf`: the MCA department, academic year 2026-27, the eight subjects with their syllabus (units, lab, outcomes, references, evaluation), a 150-question bank (five per unit), Quiz 1 and Quiz 2 drafts for each theory course, a welcome announcement per subject and tentative CIE calendar entries. It removes the old example data, never overwrites records that already exist, and is safe to re-run.
 
-```bash
-npm run seed -w server
-```
-
-Seed examples are not real RVCE records and are not eligible for Google sign-in. Check `server/src/scripts/seed.js` before changing seed behavior.
+When `MONGODB_URI` does not name a database (common for Atlas URIs ending in `/`), the app uses `rvce_academic_hub`, or `MONGODB_DB` if set.
 
 ## Developer commands
 
@@ -254,7 +252,7 @@ The HTTP tests bind to loopback. In restricted sandboxes, the test process may r
 ## Deployment notes and known limits
 
 - Set a strong `JWT_SECRET`, production OAuth client IDs, production allowed origin, approved email domain, and `TRUST_PROXY` only when the app is behind a correctly configured trusted proxy.
-- Provision at least one administrator securely before institutional use. There is no self-service account registration.
+- Provision at least one administrator securely before institutional use. Anyone with a verified address on an allowed domain can sign in and becomes a student, so keep `ALLOWED_EMAIL_DOMAINS` and `ALLOWED_EMAILS` limited to institutional addresses.
 - Local assignment upload storage is not a shared or automatically durable production storage layer.
 - `docker-compose.yml` defines MongoDB, API, and client services. The application container builds have previously failed in the local Docker/npm environment during dependency installation; host lint, tests, and client builds are the verified development checks. See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for current verification history.
 - This is an actively developed application. Review role authorization, data retention, backups, privacy requirements, accessibility, and institutional policies before using real student data.

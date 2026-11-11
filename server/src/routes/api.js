@@ -53,9 +53,9 @@ router.post(
   wrap(async (req, res) => {
     const schema = z.object({ credential: z.string().min(10) });
     const { credential } = schema.parse(req.body);
-    const { user, token } = await authenticateGoogle(credential);
+    const { user, token, created } = await authenticateGoogle(credential);
     setSessionCookie(res, token);
-    send(res, { user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    send(res, { user: { id: user.id, name: user.name, email: user.email, role: user.role }, created });
   }),
 );
 function setSessionCookie(res, token) {
@@ -233,8 +233,14 @@ router.patch(
         section: z.string().optional(),
         isActive: z.boolean().optional(),
         approvalStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
+        role: z.enum(['admin', 'teacher', 'student']).optional(),
       })
       .parse(req.body);
+    if (
+      req.params.id === String(req.user._id) &&
+      ((body.role && body.role !== 'admin') || body.isActive === false)
+    )
+      return res.status(400).json({ ok: false, error: 'You cannot remove your own admin access' });
     const user = await User.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
     await audit(req, 'USER_UPDATED', 'User', user._id, body);
@@ -500,10 +506,44 @@ router.get(
     send(
       res,
       await Subject.find(filter)
+        .select('-syllabus')
         .populate('department', 'name code')
         .populate('teachers', 'name email')
         .sort({ name: 1 }),
     );
+  }),
+);
+/**
+ * One subject with its scheme and syllabus. Admins see every subject, teachers
+ * the subjects they teach and students the subjects they are enrolled in.
+ * Staff also get the number of bank questions per unit.
+ */
+router.get(
+  '/subjects/:id',
+  authenticate,
+  wrap(async (req, res) => {
+    if (!oid(req.params.id)) throw httpError(400, 'Invalid id');
+    const subject = await Subject.findOne({ _id: req.params.id, archivedAt: null })
+      .populate('department', 'name code')
+      .populate('teachers', 'name email')
+      .populate('coordinator', 'name email')
+      .lean();
+    const allowed =
+      subject &&
+      (req.user.role === 'admin' ||
+        (req.user.role === 'teacher' && subject.teachers.some((t) => t._id.equals(req.user._id))) ||
+        (req.user.role === 'student' && subject.students.some((id) => id.equals(req.user._id))));
+    if (!allowed) throw httpError(404, 'Subject not found');
+    const { students, ...rest } = subject;
+    const body = { ...rest, studentCount: students.length };
+    if (req.user.role !== 'student') {
+      const byTopic = await Question.aggregate([
+        { $match: { subject: subject._id, archivedAt: null } },
+        { $group: { _id: '$topic', n: { $sum: 1 } } },
+      ]);
+      body.questionsByTopic = Object.fromEntries(byTopic.map((t) => [t._id || 'Other', t.n]));
+    }
+    send(res, body);
   }),
 );
 router.post(

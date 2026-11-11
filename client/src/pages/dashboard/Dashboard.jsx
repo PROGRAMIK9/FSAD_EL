@@ -118,8 +118,8 @@ function SubjectTile({ s, quizzes }) {
         {quizzes.length} quiz{quizzes.length === 1 ? '' : 'zes'}
         {open ? ` · ${open} open now` : ''}
       </p>
-      <Button variant="ink" className="cta-corner" to={`/assessments?q=${encodeURIComponent(s.code)}`}>
-        Quizzes <ArrowRight />
+      <Button variant="ink" className="cta-corner" to={`/subjects/${s._id}`}>
+        Open <ArrowRight />
       </Button>
     </article>
   );

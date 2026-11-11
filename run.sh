@@ -3,14 +3,14 @@
 #
 #   ./run.sh            set up (first run), start MongoDB, seed if empty, run API + client
 #   ./run.sh setup      create .env and install dependencies only
-#   ./run.sh seed       (re)load the sample accounts, subjects and quizzes
+#   ./run.sh seed       load the MCA scheme: subjects, syllabus, questions, quiz drafts
 #   ./run.sh test       run the server test suite
 #   ./run.sh build      production build of the client (client/dist)
 #   ./run.sh stop       stop the MongoDB started by this script
 #   ./run.sh help       show this help
 #
-# Local development only: the generated .env enables the sign-in picker
-# (DEV_LOGIN=true), which is ignored when NODE_ENV=production.
+# The generated .env is for local development; add your Google OAuth client ID
+# to sign in. The sign-in picker (DEV_LOGIN=true) stays off unless you enable it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,11 +49,9 @@ ensure_env() {
   sed \
     -e "s|^JWT_SECRET=.*|JWT_SECRET=$(random_secret)|" \
     -e "s|^MONGODB_URI=.*|MONGODB_URI=mongodb://127.0.0.1:27017/rvce_academic_hub|" \
-    -e "s|^DEV_LOGIN=.*|DEV_LOGIN=true|" \
-    -e "s|^SEED_ACTIVATE=.*|SEED_ACTIVATE=true|" \
     .env.example >.env
-  ok ".env created with a random JWT secret, local MongoDB and the dev sign-in picker"
-  warn "DEV_LOGIN=true lets anyone on this machine sign in as a sample user. Keep it local."
+  ok ".env created with a random JWT secret and a local MongoDB"
+  warn "Set GOOGLE_CLIENT_ID and VITE_GOOGLE_CLIENT_ID in .env to enable Google sign-in."
 }
 
 load_env() {
@@ -116,10 +114,10 @@ ensure_mongo() {
 
 user_count() {
   node --input-type=module -e "
-    import mongoose from 'mongoose';
-    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log(await mongoose.connection.db.collection('users').countDocuments());
-    await mongoose.disconnect();
+    import { connectDB } from './server/src/config/db.js';
+    const db = await connectDB();
+    console.log(await db.collection('users').countDocuments());
+    await db.close();
   " 2>/dev/null || echo "unknown"
 }
 
@@ -133,7 +131,7 @@ seed_if_empty() {
   n="$(user_count)"
   if [[ "$n" == "0" ]]; then
     seed
-    ok "Sample accounts created. Pick one on the sign-in page."
+    ok "Subjects, syllabus and quiz drafts loaded. Sign in with Google."
   elif [[ "$n" == "unknown" ]]; then
     warn "Could not count users; skipping automatic seeding (run ./run.sh seed if the app is empty)."
   else

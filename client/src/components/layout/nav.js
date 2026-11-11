@@ -63,6 +63,7 @@ export const titleFor = (pathname) => {
   if (pathname.includes('/monitor')) return 'Live monitor';
   if (pathname.includes('/attempts/')) return 'Attempt review';
   if (pathname.startsWith('/results/')) return 'Result';
+  if (pathname.startsWith('/subjects/')) return 'Subject';
   if (pathname.startsWith('/assessments/')) return 'Assessments';
   if (pathname.startsWith('/rooms/')) return 'Exam room';
   return 'Academic Hub';

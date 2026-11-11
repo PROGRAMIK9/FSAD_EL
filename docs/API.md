@@ -19,6 +19,6 @@ Base URL: `/api`. JSON responses use `{ "ok": true, "data": ... }`; failures use
 
 Socket.IO authenticates with the session cookie. Supported controls include `room:join`, `room:start`, `room:pause`, and `room:end`; all room actions are checked against the persisted room and teacher assignment.
 
-All production API endpoints require valid identities provisioned in MongoDB. There is no public account registration or frontend role assignment.
+All API endpoints except sign-in require a session. A verified Google account from an allowed domain (or the `ALLOWED_EMAILS` list) that signs in for the first time is created as an active **student**; only administrators can change a role (`PATCH /admin/users/:id` with `role`), and an administrator cannot remove their own admin access.
 
 Quiz assessments are fixed at 10 marks. Question types are one-correct-answer MCQ and single-line fill-in; the server validates the question total and scores fill-in answers case-insensitively after trimming whitespace.
