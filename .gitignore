@@ -23,3 +23,7 @@ docs/report/*.lot
 docs/report/*.fls
 docs/report/*.fdb_latexmk
 docs/report/*.synctex.gz
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/

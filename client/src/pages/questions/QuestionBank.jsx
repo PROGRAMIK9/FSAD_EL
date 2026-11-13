@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Archive, ArchiveRestore, Copy, FileStack, Lock, Pencil, Plus, Search } from 'lucide-react';
+import { Archive, ArchiveRestore, Copy, FileStack, Lock, Pencil, Plus, ScanText, Search } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { useApi } from '../../hooks/useApi.js';
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton, Tabs, Toolbar } from '../../components/ui/index.js';
 import { QuestionPreview } from '../../components/domain/QuestionPreview.jsx';
 import { QuestionEditor } from './QuestionEditor.jsx';
+import { ImportPaperModal } from './ImportPaperModal.jsx';
 
 export default function QuestionBank() {
   const { data: subjects } = useApi('/subjects', { initial: [] });
@@ -16,6 +17,7 @@ export default function QuestionBank() {
   const [query, setQuery] = useState('');
   const [view, setView] = useState('active');
   const [editor, setEditor] = useState(null); // null | { question?, duplicate? }
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setQuery(search.trim()), 250);
@@ -45,9 +47,14 @@ export default function QuestionBank() {
         title="Question bank"
         description="Reusable questions for your subjects. Quizzes are assembled from these."
         actions={
-          <Button variant="primary" icon={Plus} onClick={() => setEditor({})} disabled={!subjects.length}>
-            New question
-          </Button>
+          <>
+            <Button icon={ScanText} onClick={() => setImporting(true)} disabled={!subjects.length}>
+              Import paper
+            </Button>
+            <Button variant="primary" icon={Plus} onClick={() => setEditor({})} disabled={!subjects.length}>
+              New question
+            </Button>
+          </>
         }
       />
       <Card>
@@ -138,6 +145,18 @@ export default function QuestionBank() {
           />
         )}
       </Card>
+      {importing && (
+        <ImportPaperModal
+          subjects={subjects}
+          defaultSubject={subject || undefined}
+          topics={topics}
+          onClose={() => setImporting(false)}
+          onImported={() => {
+            setImporting(false);
+            reload();
+          }}
+        />
+      )}
       {editor && (
         <Modal size="xl" title={editor.duplicate ? 'Duplicate question' : editor.question ? 'Edit question' : 'New question'} onClose={() => setEditor(null)}>
           <QuestionEditor

@@ -4,6 +4,7 @@ const People = lazy(() => import('./pages/people/People.jsx'));
 const Structure = lazy(() => import('./pages/structure/Structure.jsx'));
 const Subjects = lazy(() => import('./pages/subjects/Subjects.jsx'));
 const SubjectDetail = lazy(() => import('./pages/subjects/SubjectDetail.jsx'));
+const CieSheet = lazy(() => import('./pages/subjects/CieSheet.jsx'));
 const Assessments = lazy(() => import('./pages/assessments/Assessments.jsx'));
 const QuizBuilder = lazy(() => import('./pages/assessments/QuizBuilder.jsx'));
 const LiveMonitor = lazy(() => import('./pages/assessments/LiveMonitor.jsx'));
@@ -11,6 +12,7 @@ const AttemptReview = lazy(() => import('./pages/assessments/AttemptReview.jsx')
 const AttemptResult = lazy(() => import('./pages/results/AttemptResult.jsx'));
 const MyGrades = lazy(() => import('./pages/grades/MyGrades.jsx'));
 const Evaluation = lazy(() => import('./pages/grades/Evaluation.jsx'));
+const Reviews = lazy(() => import('./pages/grades/Reviews.jsx'));
 const QuestionBank = lazy(() => import('./pages/questions/QuestionBank.jsx'));
 const ExamPage = lazy(() => import('./pages/exam/ExamPage.jsx'));
 const ExamRoom = lazy(() => import('./pages/exam/ExamRoom.jsx'));
@@ -40,6 +42,7 @@ export const appRoutes = [
   { path: '/structure', element: <Structure />, roles: A },
   { path: '/subjects', element: <Subjects /> },
   { path: '/subjects/:id', element: <SubjectDetail /> },
+  { path: '/subjects/:id/cie', element: <CieSheet />, roles: T },
   { path: '/assessments', element: <Assessments /> },
   { path: '/assessments/new', element: <QuizBuilder key="new" />, roles: T },
   { path: '/assessments/:id/edit', element: <QuizBuilder key="edit" />, roles: T },
@@ -47,6 +50,7 @@ export const appRoutes = [
   { path: '/assessments/:id/attempts/:attemptId', element: <AttemptReview />, roles: T },
   { path: '/results/:assessmentId', element: <AttemptResult />, roles: ['student'] },
   { path: '/evaluation', element: <Evaluation />, roles: T },
+  { path: '/reviews', element: <Reviews />, roles: T },
   { path: '/grades', element: <MyGrades />, roles: ['student'] },
   { path: '/questions', element: <QuestionBank />, roles: T },
   { path: '/assignments', element: <Legacy.Assignments /> },

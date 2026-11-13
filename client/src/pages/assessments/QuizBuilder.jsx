@@ -57,6 +57,7 @@ const emptyQuiz = {
   startsAt: '',
   endsAt: '',
   durationMinutes: 20,
+  cieSlot: '',
   attemptsAllowed: 1,
   randomizeQuestions: true,
   randomizeOptions: true,
@@ -74,6 +75,7 @@ function fromAssessment(a) {
     endsAt: toLocalInput(a.endsAt),
     durationMinutes: a.durationMinutes,
     attemptsAllowed: a.attemptsAllowed,
+    cieSlot: a.cieSlot || '',
     randomizeQuestions: Boolean(a.randomizeQuestions),
     randomizeOptions: Boolean(a.randomizeOptions),
     proctoring: { ...proctoringDefaults, ...(a.proctoring || {}) },
@@ -87,6 +89,7 @@ function toPayload(v) {
     endsAt: v.endsAt ? new Date(v.endsAt).toISOString() : null,
     durationMinutes: Number(v.durationMinutes),
     attemptsAllowed: Number(v.attemptsAllowed),
+    cieSlot: v.cieSlot || null,
     proctoring: { ...v.proctoring, maxViolations: Number(v.proctoring.maxViolations) },
     maxMarks: QUIZ_MARKS,
   };
@@ -517,6 +520,11 @@ export default function QuizBuilder() {
                   ))}
                 </Select>
                 <Input label="Title" required placeholder="e.g. Unit 2 quiz: Trees and graphs" error={formState.errors.title?.message} {...register('title')} />
+                <Select label="Counts towards CIE as" hint="Quiz 1 and Quiz 2 marks fill the CIE sheet automatically. Each subject has one of each." {...register('cieSlot')}>
+                  <option value="">Practice (not counted)</option>
+                  <option value="QUIZ1">Quiz 1 (10 marks)</option>
+                  <option value="QUIZ2">Quiz 2 (10 marks)</option>
+                </Select>
                 <Textarea label="Instructions for students" rows={4} placeholder="Optional. Shown on the rules screen before the quiz starts." {...register('description')} />
               </div>
             </Card>

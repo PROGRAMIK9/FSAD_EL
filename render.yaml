@@ -1,0 +1,36 @@
+# Render blueprint: one web service that serves the API, Socket.IO and the built client.
+# Create it from the Render dashboard: New -> Blueprint -> pick this repository.
+services:
+  - type: web
+    name: rvce-academic-hub
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_TTL
+        value: 4h
+      - key: ALLOWED_EMAIL_DOMAINS
+        value: rvce.edu.in
+      # Set these in the dashboard (they are secrets or depend on your service URL):
+      - key: MONGODB_URI
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: ALLOWED_EMAILS
+        sync: false

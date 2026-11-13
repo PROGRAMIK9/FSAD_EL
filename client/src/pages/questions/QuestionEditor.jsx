@@ -30,8 +30,10 @@ function Segmented({ value, onChange, options }) {
  * Create or edit a question. Renders its own actions so it can live in a Modal or a Drawer.
  * `lockSubject` keeps the subject fixed (used inside the quiz builder).
  * `initial` pre-fills a new question (used for duplicating).
+ * `onSubmit(values)` replaces saving: the editor hands back its form values instead of calling the
+ * API (used to fix drafts read from a question paper before they are imported).
  */
-export function QuestionEditor({ subjects, question, initial, defaultSubject, lockSubject, topics = [], onSaved, onCancel }) {
+export function QuestionEditor({ subjects, question, initial, defaultSubject, lockSubject, topics = [], onSaved, onCancel, onSubmit, submitLabel }) {
   const {
     register,
     control,
@@ -61,6 +63,7 @@ export function QuestionEditor({ subjects, question, initial, defaultSubject, lo
   }, [values.type, fields.length, append]);
 
   const submit = handleSubmit(async (v) => {
+    if (onSubmit) return onSubmit(v);
     try {
       const payload = toQuestionPayload(v);
       const saved = editing ? await api.patch(`/questions/${question._id}`, payload) : await api.post('/questions', payload);
@@ -152,7 +155,7 @@ export function QuestionEditor({ subjects, question, initial, defaultSubject, lo
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button onClick={onCancel}>Cancel</Button>
           <Button type="submit" variant="primary" loading={isSubmitting} disabled={question?.locked}>
-            {editing ? 'Save question' : 'Add question'}
+            {submitLabel || (editing ? 'Save question' : 'Add question')}
           </Button>
         </div>
       </div>

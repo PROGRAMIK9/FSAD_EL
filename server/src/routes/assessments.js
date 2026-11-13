@@ -45,9 +45,26 @@ const assessmentFields = {
   randomizeQuestions: z.boolean().default(false),
   randomizeOptions: z.boolean().default(false),
   proctoring: proctoringSchema.default({}),
+  cieSlot: z.enum(['QUIZ1', 'QUIZ2']).nullable().optional(),
 };
 const createSchema = z.object({ ...assessmentFields, publish: z.boolean().default(false) });
 const updateSchema = z.object(assessmentFields).partial();
+
+/** A subject can have one Quiz 1 and one Quiz 2 that count towards CIE. */
+async function checkCieSlot(subjectId, slot, exceptId) {
+  if (!slot) return;
+  const clash = await Assessment.findOne({
+    subject: subjectId,
+    cieSlot: slot,
+    state: { $ne: 'CANCELLED' },
+    ...(exceptId ? { _id: { $ne: exceptId } } : {}),
+  }).select('title');
+  if (clash)
+    throw httpError(
+      409,
+      `"${clash.title}" already counts as ${slot === 'QUIZ1' ? 'Quiz 1' : 'Quiz 2'} for this subject`,
+    );
+}
 
 /** Ensures the window and duration are coherent. */
 function checkTiming({ startsAt, endsAt, durationMinutes, availabilityMode }, { publishing }) {
@@ -206,6 +223,7 @@ router.post(
     if (!subject) throw httpError(404, 'Subject not found');
     if (!teachesSubject(subject, req.user)) throw httpError(403, 'Not allocated to subject');
     await checkPaper(subject._id, b.questionIds, b.maxMarks);
+    await checkCieSlot(subject._id, b.cieSlot);
     let a = await Assessment.create({ ...b, creator: req.user._id, state: 'DRAFT' });
     await audit(req, 'ASSESSMENT_CREATED', 'Assessment', a._id);
     if (publishNow) {
@@ -235,6 +253,7 @@ router.patch(
     a.set(b);
     checkTiming(a, { publishing: false });
     await checkPaper(a.subject._id, a.questionIds.map(String), a.maxMarks);
+    await checkCieSlot(a.subject._id, a.cieSlot, a._id);
     await a.save();
     await audit(req, 'ASSESSMENT_UPDATED', 'Assessment', a._id);
     send(res, a);

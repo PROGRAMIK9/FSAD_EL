@@ -9,20 +9,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  server:
-    build: { context: ., dockerfile: Dockerfile.server }
-    env_file: .env
-    environment: { MONGODB_URI: mongodb://mongo:27017/rvce_academic_hub }
-    ports: ["4000:4000"]
-    depends_on: { mongo: { condition: service_healthy } }
-  client:
+  app:
     build:
       context: .
-      dockerfile: Dockerfile.client
       args:
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api}
-    ports: ["5173:80"]
-    depends_on: [server]
+    env_file: .env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/rvce_academic_hub
+      NODE_ENV: production
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:4000}
+    ports: ["4000:4000"]
+    volumes: [uploads:/app/uploads]
+    depends_on: { mongo: { condition: service_healthy } }
 volumes:
   mongo_data:
+  uploads:

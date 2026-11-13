@@ -1,12 +1,60 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeft, BookMarked, ClipboardList, ExternalLink, FlaskConical, GraduationCap, Layers, ListChecks, Pencil, Scale, Target, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookMarked, ClipboardList, ExternalLink, FlaskConical, GraduationCap, Layers, ListChecks, Pencil, Scale, Sigma, Target, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useApi } from '../../hooks/useApi.js';
 import { Avatar, Button, Card, EmptyState, MetaPill, SectionTitle, Skeleton, StatusBadge, Tabs } from '../../components/ui/index.js';
 import { QuizCard, hueFor } from '../../components/domain/QuizCard.jsx';
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+
+/** The signed-in student's CIE breakdown once the teacher publishes it. */
+function MyCie({ subjectId }) {
+  const { data, error, loading } = useApi(`/me/cie/${subjectId}`);
+  const rows = data && [
+    ['Quizzes', data.result.quizzes, 20],
+    ['Tests', data.result.tests, 40],
+    ['Experiential learning', data.result.el, 40],
+  ];
+  return (
+    <Card className="p-5">
+      <p className="flex items-center gap-2 font-display text-sm font-semibold">
+        <Sigma className="h-4 w-4 text-primary" /> My CIE
+      </p>
+      {loading && !data ? (
+        <Skeleton className="mt-3 h-20" />
+      ) : error || !data ? (
+        <p className="mt-2 text-sm text-muted">Your CIE marks appear here once your teacher publishes them.</p>
+      ) : (
+        <>
+          <p className="mt-2 font-display text-3xl font-bold tabular">
+            {data.result.total ?? '—'}
+            <span className="text-base font-medium text-muted">/100</span>
+          </p>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {rows.map(([label, v, max]) => (
+              <li key={label} className="flex justify-between gap-3">
+                <span className="text-muted">{label}</span>
+                <span className="font-semibold tabular">
+                  {v ?? '—'}/{max}
+                </span>
+              </li>
+            ))}
+            {data.hasLab && (
+              <li className="flex justify-between gap-3 border-t border-border/70 pt-1.5">
+                <span className="text-muted">CIE lab</span>
+                <span className="font-semibold tabular">{data.result.lab ?? '—'}/50</span>
+              </li>
+            )}
+          </ul>
+          <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium ${data.result.eligible === false ? 'bg-danger-soft text-danger' : data.result.eligible ? 'bg-success-soft text-success' : 'bg-surface-2 text-muted'}`}>
+            {data.result.eligible === null ? 'Some marks are still to be entered.' : data.result.eligible ? `Quiz + test ${data.result.quizAndTests}/60: you clear the CIE requirement.` : `Quiz + test ${data.result.quizAndTests}/60: at least 30 is needed to clear CIE.`}
+          </p>
+        </>
+      )}
+    </Card>
+  );
+}
 
 function UnitCard({ unit, questions }) {
   return (
@@ -265,6 +313,18 @@ export default function SubjectDetail() {
         </div>
 
         <aside className="space-y-4">
+          {hasUnits && isStudent && <MyCie subjectId={id} />}
+          {hasUnits && !isStudent && (
+            <Card className="p-5">
+              <p className="flex items-center gap-2 font-display text-sm font-semibold">
+                <Sigma className="h-4 w-4 text-primary" /> CIE marks
+              </p>
+              <p className="mt-2 text-sm text-muted">Quiz marks fill in automatically; enter tests and EL{syl.cieLab ? ' and lab' : ''}.</p>
+              <Button variant="primary" className="mt-4 w-full" to={`/subjects/${id}/cie`}>
+                Open CIE sheet <ArrowRight />
+              </Button>
+            </Card>
+          )}
           <Card className="p-5">
             <p className="flex items-center gap-2 font-display text-sm font-semibold">
               <GraduationCap className="h-4 w-4 text-primary" /> Faculty

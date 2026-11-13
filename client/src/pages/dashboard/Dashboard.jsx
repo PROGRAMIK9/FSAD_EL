@@ -7,6 +7,7 @@ import { useApi } from '../../hooks/useApi.js';
 import { useThemeColors } from '../../hooks/useThemeColors.js';
 import { Button, Card, CardHeader, DataTable, EmptyState, ExportMenu, PageHeader, Ring, ScoreRing, SectionTitle, StatCard } from '../../components/ui/index.js';
 import { QuizCard, hueFor, studentActionFor } from '../../components/domain/QuizCard.jsx';
+import { ElectivePrompt } from '../../components/domain/ElectiveChooser.jsx';
 import { AssessmentList } from '../../components/domain/AssessmentList.jsx';
 import { SubjectCard } from '../../components/domain/SubjectCard.jsx';
 import { fmtDate, fmtDateTime, greeting, humanize } from '../../lib/format.js';
@@ -292,8 +293,8 @@ function SubjectsPanel({ subjects }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user.role === 'admin';
-  const { data: assessments } = useApi('/assessments', { initial: [] });
-  const { data: subjects } = useApi(isAdmin ? null : '/subjects', { initial: [] });
+  const { data: assessments, reload: reloadAssessments } = useApi('/assessments', { initial: [] });
+  const { data: subjects, reload: reloadSubjects } = useApi(isAdmin ? null : '/subjects', { initial: [] });
   const { data: summary, loading } = useApi(isAdmin ? null : '/dashboard/summary');
   const today = useMemo(() => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }), []);
   return (
@@ -308,7 +309,15 @@ export default function Dashboard() {
       ) : user.role === 'teacher' ? (
         <TeacherDashboard assessments={assessments} subjects={subjects} summary={summary} loading={loading} />
       ) : (
-        <StudentDashboard assessments={assessments} subjects={subjects} summary={summary} loading={loading} />
+        <>
+          <ElectivePrompt
+            onChosen={() => {
+              reloadSubjects();
+              reloadAssessments();
+            }}
+          />
+          <StudentDashboard assessments={assessments} subjects={subjects} summary={summary} loading={loading} />
+        </>
       )}
     </>
   );

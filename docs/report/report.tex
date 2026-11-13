@@ -271,6 +271,9 @@ FR9 & Teachers see a live roster with status, progress, warnings and time left, 
 FR10 & Attempts are scored automatically; the best attempt is kept as the grade; teachers publish grades individually or all at once.\\
 FR11 & After publication, students see their score and a per-question review; they may request a review of a mark.\\
 FR12 & Teachers export a quiz's results, students export their own grades and administrators export all published grades, as CSV or Excel.\\
+FR13 & Teachers maintain a CIE sheet per subject: quiz marks are filled automatically, test, experiential-learning and lab marks are entered, totals follow the scheme's rubric and are published to students.\\
+FR14 & Students choose one elective of each elective group; administrators see the counts and close the choice.\\
+FR15 & Teachers see students' mark-review requests in an inbox and accept (optionally correcting the mark) or decline them with a reply.\\
 \bottomrule
 \end{longtable}
 
@@ -546,6 +549,26 @@ The interface was redesigned after a contemporary quiz-application concept and a
   \item \textbf{Typography.} Poppins for headings and numbers, DM Sans for body text.
 \end{itemize}
 
+\section{CIE marks sheet}
+The scheme evaluates every theory course with two quizzes (10 marks each), two descriptive tests (50 marks each, reduced to 40) and an experiential-learning component (Phase I and Phase II, 20 marks each), for a CIE of 100. Integrated-lab courses add a 50-mark lab component (record 40 and lab test 10). A quiz can be marked in the builder as counting for \emph{Quiz 1} or \emph{Quiz 2}; its published grades then fill the sheet automatically. Teachers enter the remaining components in a spreadsheet-style page whose cells save when focus leaves them. The server function \code{computeCie} reduces the tests, totals the components and applies the rule that quizzes and tests together must reach 30 of 60; it is unit tested. The sheet can be exported and published, after which each student sees a \emph{My CIE} card on the subject page.
+
+\section{Elective choice}
+Subjects can belong to an elective group; the four Group-D electives of the scheme form group D. Core subjects, the minor project and the internship are enrolled automatically at first sign-in, while electives are chosen: the student dashboard shows the options with their unit titles, and choosing one enrols the student in it and removes them from the others in the group. Administrators see how many students chose each elective and can close the choice.
+
+\section{Grade review inbox}
+A student who disagrees with a mark writes a short request from the result page. Teachers see open requests for their subjects in an inbox with a badge in the sidebar, open the student's answers, and accept the request (optionally entering a corrected mark, validated against the maximum) or decline it. Either way the student is notified with the reply, and an accepted correction updates the grade and the audit log.
+
+\section{Security hardening}
+\begin{itemize}
+  \item \textbf{Rate limits per session.} A class writes quizzes from behind one college network address, so a per-address limit would throttle every student together. Signed-in requests are therefore limited per verified session, anonymous requests per address, and only the sign-in endpoints have a strict per-address limit.
+  \item \textbf{Content-Security-Policy.} Only the application's origin, Google Identity Services and Google Fonts may load scripts, frames, styles and fonts; inline scripts are not allowed.
+  \item \textbf{Sessions} are HTTP-only, \code{Secure} in production, and renewed after half their lifetime.
+  \item \textbf{Route guard test.} An automated test walks the whole API router and asserts that every route outside a short public list rejects requests without a session.
+\end{itemize}
+
+\section{Deployment}
+In production the Node server serves the API, Socket.IO and the built client from one origin, which keeps the session cookie first-party and removes cross-origin configuration. A Render blueprint (\code{render.yaml}) defines a single web service with the build and start commands, a health check and the required environment variables; a multi-stage \code{Dockerfile} provides the same image for any Docker host. MongoDB Atlas hosts the database.
+
 \section{Developer experience}
 \code{run.sh} starts the whole system with one command. On the first run it creates a local \code{.env} with a random
 JWT secret, installs dependencies, starts MongoDB (a local \code{mongod} with data in \code{.data/}, or Docker
@@ -557,7 +580,7 @@ Compose), loads the MCA semester III scheme when the database is empty, and runs
 \label{ch:test}
 
 \section{Automated tests}
-Server tests use the Node.js test runner and Supertest. All 27 tests pass (Table~\ref{tab:tests}).
+Server tests use the Node.js test runner and Supertest; all 44 pass (Table~\ref{tab:tests}). Seven client unit tests (Vitest) cover the student quiz actions and export file names.
 
 \begin{table}[htbp]\centering
 \caption{Automated test suites}\label{tab:tests}
@@ -566,7 +589,11 @@ Server tests use the Node.js test runner and Supertest. All 27 tests pass (Table
 \toprule
 \textbf{Suite} & \textbf{Tests} & \textbf{What is verified}\\ \midrule
 \code{proctoring.test.js} & 9 & Warning classification; one tab switch counted once; repeats after the merge window; fullscreen rule; disabled proctoring; limit at \code{maxViolations}; policy defaults\\
-\code{auth.test.js} & 7 & Allowed domains and allowlist; first sign-in creates an active student; name fallback; existing roles kept; disabled or rejected accounts blocked; unverified or outside-domain emails rejected; concurrent first sign-ins\\
+\code{auth.test.js} & 11 & Allowed domains; first sign-in creates an active student enrolled in the core subjects; names from Google or the email; existing roles kept; disabled or rejected accounts blocked; unverified or outside-domain emails rejected; concurrent first sign-ins\\
+\code{cie.test.js} & 5 & Rubric totals; tests reduced to 40; the 30-of-60 rule; missing components; lab component\\
+\code{electives.test.js} & 4 & Choosing enrols in one elective and removes the others; locked groups; non-electives refused; current choice\\
+\code{route-guard.test.js} & 2 & Every API route outside the public list requires a session\\
+\code{rate-limits.test.js} & 2 & Per-session keys for signed-in users; forged or missing sessions fall back to the address\\
 \code{grading.test.js} & 4 & MCQ and fill-in scoring; case and whitespace normalisation; per-question review statuses\\
 \code{export.test.js} & 3 & CSV BOM, quoting and line endings; formula-injection guard; XLSX round trip with typed values and header style\\
 \code{csv.test.js} & 2 & Quoted commas, escaped quotes, CRLF; unterminated fields rejected\\
@@ -576,7 +603,9 @@ Server tests use the Node.js test runner and Supertest. All 27 tests pass (Table
 \end{table}
 
 \section{End-to-end verification}
-The complete flows were exercised in a headless Chromium browser against a seeded local database:
+A Playwright suite (seven tests, run locally with \code{./run.sh e2e} and in continuous integration) drives the complete cycle in Chromium against a throwaway database loaded with the real MCA seed: a student chooses the Group-D elective; the teacher opens Quiz 1; the student writes it on the proctored exam screen and submits; the teacher ends the quiz, publishes the result and downloads the Excel workbook, whose sheets and headers are checked; the student questions a mark and the teacher accepts it with a corrected score; the teacher enters and publishes CIE marks and the student sees them; and a signed-out visitor is refused. A GitHub Actions workflow runs lint, the unit suites, the production build and this suite on every push.
+
+In addition, the following flows were exercised manually in a headless browser:
 \begin{enumerate}
   \item A teacher published a quiz; students started it in fullscreen, answered, and submitted. Autosave status, the countdown ring and the answered counter updated as expected.
   \item Leaving fullscreen during an attempt produced warnings visible on the student overlay and on the teacher's live feed; reaching the limit auto-submitted the attempt.
@@ -613,15 +642,14 @@ warning limit), while the client focuses on a consistent, accessible interface t
 \begin{itemize}
   \item Browser signals cannot detect a second device or another person in the room.
   \item Only single-correct MCQ and single-line fill-in questions are supported, by design.
-  \item Teachers answer grade review requests through the API; a dedicated review inbox is not yet built.
 \end{itemize}
 
 \section{Future work}
 \begin{itemize}
-  \item A teacher inbox for grade review requests and per-question analytics (difficulty and discrimination indices).
+  \item Per-question analytics on the quiz report (difficulty and discrimination indices).
   \item Question import from spreadsheets and question pools that draw a different paper for each student.
   \item Optional, consent-based webcam snapshots for high-stakes tests.
-  \item Integration of quiz results into consolidated internal assessment marks.
+  \item Consolidating CIE and SEE into final grades, and attendance tracking.
   \item Progressive Web App support for unstable networks.
 \end{itemize}
 
