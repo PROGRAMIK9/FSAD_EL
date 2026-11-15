@@ -10,6 +10,7 @@ import {
   Landmark,
   LayoutDashboard,
   Megaphone,
+  MessageSquareWarning,
   NotebookPen,
   Settings,
   ShieldCheck,
@@ -33,6 +34,7 @@ export const navGroups = [
       { label: 'Assessments', to: '/assessments', icon: ClipboardList },
       { label: 'Question bank', to: '/questions', icon: FileStack, roles: ['teacher', 'admin'] },
       { label: 'Evaluation', to: '/evaluation', icon: ClipboardCheck, roles: ['teacher', 'admin'] },
+      { label: 'Review requests', to: '/reviews', icon: MessageSquareWarning, roles: ['teacher', 'admin'] },
       { label: 'My grades', to: '/grades', icon: ChartNoAxesCombined, roles: ['student'] },
       { label: 'Assignments', to: '/assignments', icon: NotebookPen },
       { label: 'Announcements', to: '/announcements', icon: Megaphone },
@@ -63,6 +65,7 @@ export const titleFor = (pathname) => {
   if (pathname.includes('/monitor')) return 'Live monitor';
   if (pathname.includes('/attempts/')) return 'Attempt review';
   if (pathname.startsWith('/results/')) return 'Result';
+  if (/^\/subjects\/[^/]+\/cie/.test(pathname)) return 'CIE sheet';
   if (pathname.startsWith('/subjects/')) return 'Subject';
   if (pathname.startsWith('/assessments/')) return 'Assessments';
   if (pathname.startsWith('/rooms/')) return 'Exam room';

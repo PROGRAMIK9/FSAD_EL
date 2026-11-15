@@ -94,6 +94,7 @@ export const quizFormSchema = z
     endsAt: z.string(),
     durationMinutes: z.coerce.number({ invalid_type_error: 'Enter a duration' }).int('Whole minutes only').min(1, 'At least 1 minute').max(600, 'At most 600 minutes'),
     attemptsAllowed: z.coerce.number().int().min(1).max(10),
+    cieSlot: z.enum(['', 'QUIZ1', 'QUIZ2']).default(''),
     randomizeQuestions: z.boolean(),
     randomizeOptions: z.boolean(),
     proctoring: z.object({

@@ -4,13 +4,14 @@ import { dirname, resolve } from 'node:path';
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 dotenv.config({ path: resolve(projectRoot, '.env') });
 import http from 'node:http';
+import { existsSync } from 'node:fs';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
 import { Server } from 'socket.io';
 import { connectDB } from './config/db.js';
+import { apiLimiter, signInLimiter } from './middleware/rate-limits.js';
 import api from './routes/api.js';
 import { submitExpiredAttempts } from './services/attempts.js';
 import { advanceAssessmentStates } from './services/assessment-schedule.js';
@@ -20,22 +21,63 @@ const app = express();
 const origin = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',');
 app.disable('x-powered-by');
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // 'wasm-unsafe-eval' lets the self-hosted OCR engine (tesseract.js, pdf.js) compile WebAssembly.
+        scriptSrc: ["'self'", "'wasm-unsafe-eval'", 'https://accounts.google.com/gsi/client'],
+        workerSrc: ["'self'"],
+        frameSrc: ['https://accounts.google.com/gsi/'],
+        connectSrc: ["'self'", 'ws:', 'wss:', 'https://accounts.google.com/gsi/'],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://fonts.googleapis.com',
+          'https://accounts.google.com/gsi/style',
+        ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    // Google sign-in opens a popup that must be able to post back to this window.
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 app.use(cors({ origin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use(
-  '/api',
-  rateLimit({ windowMs: 15 * 60_000, limit: 600, standardHeaders: true, legacyHeaders: false }),
-);
-app.use(
-  '/api/auth',
-  rateLimit({ windowMs: 15 * 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }),
-);
+app.use('/api', apiLimiter);
+app.post(['/api/auth/google', '/api/auth/dev-login'], signInLimiter);
 app.get('/api/health', (_req, res) =>
   res.json({ ok: true, data: { service: 'rvce-academic-hub-api', time: new Date().toISOString() } }),
 );
 app.use('/api', api);
+app.use('/api', (_req, res) => res.status(404).json({ ok: false, error: 'Not found' }));
+
+// In production the API also serves the built client (one origin: no CORS or cross-site cookies).
+const clientDist = resolve(projectRoot, 'client/dist');
+if (
+  (process.env.NODE_ENV === 'production' || process.env.SERVE_CLIENT === 'true') &&
+  process.env.SERVE_CLIENT !== 'false' &&
+  existsSync(resolve(clientDist, 'index.html'))
+) {
+  app.use(
+    '/assets',
+    express.static(resolve(clientDist, 'assets'), { immutable: true, maxAge: '1y', index: false }),
+  );
+  app.use(express.static(clientDist, { index: false, maxAge: '1h' }));
+  app.get(/^\/(?!api\/|socket\.io\/).*/, (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(resolve(clientDist, 'index.html'));
+  });
+}
 app.use((err, _req, res, _next) => {
   if (err?.name === 'MulterError')
     return res.status(400).json({

@@ -9,7 +9,7 @@ const FORMATS = [
   { ext: 'csv', label: 'CSV', hint: '.csv · opens in any spreadsheet app', icon: FileText },
 ];
 
-const fileNameFrom = (res, fallback) => /filename="?([^";]+)"?/i.exec(res.headers.get('content-disposition') || '')?.[1] || fallback;
+export const fileNameFrom = (res, fallback) => /filename="?([^";]+)"?/i.exec(res.headers.get('content-disposition') || '')?.[1] || fallback;
 
 /**
  * Download menu for tabular exports. `path` is the API path without the

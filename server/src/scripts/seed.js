@@ -36,6 +36,7 @@ import { ACADEMIC_YEAR, ADMIN, CIE_THEORY, COURSES, DEPARTMENT, SEMESTER } from 
 import { QUESTIONS } from '../data/mca-sem3-questions.js';
 import { nameFromEmail } from '../services/auth.js';
 import { enrollInDefaultSubjects } from '../services/enrolment.js';
+import { resetUnchosenElectives } from '../services/electives.js';
 
 const KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const PROCTORING = {
@@ -194,7 +195,7 @@ try {
   );
 
   for (const [ci, c] of COURSES.entries()) {
-    const { code, name, credits, quizzes: _q, ...syllabus } = c;
+    const { code, name, credits, quizzes: _q, electiveGroup, ...syllabus } = c;
     const subjectCreated = await upsert(
       Subject,
       { code, academicYear: ACADEMIC_YEAR.label },
@@ -205,7 +206,9 @@ try {
         semester: SEMESTER.number,
         credits,
         syllabus: { ...syllabus, code, name },
-        autoEnroll: true,
+        // Core subjects are automatic; students choose one elective per group.
+        autoEnroll: !electiveGroup,
+        electiveGroup: electiveGroup || null,
       },
     );
     tally('subjects', subjectCreated);
@@ -241,10 +244,11 @@ try {
         }
       }
       const quizzes = [
-        { title: `${code} Quiz 1: Units I-II`, units: [1, 2], pick: (list) => list },
+        { title: `${code} Quiz 1: Units I-II`, slot: 'QUIZ1', units: [1, 2], pick: (list) => list },
         // Quiz 2 takes 4 + 3 + 3 questions from Units III, IV and V.
         {
           title: `${code} Quiz 2: Units III-V`,
+          slot: 'QUIZ2',
           units: [3, 4, 5],
           pick: (list, u) => list.slice(0, u === 3 ? 4 : 3),
         },
@@ -271,9 +275,16 @@ try {
               randomizeQuestions: true,
               randomizeOptions: true,
               proctoring: PROCTORING,
+              cieSlot: qz.slot,
             },
           ),
         );
+        // Older drafts get their CIE slot, unless a teacher already gave that slot to another quiz.
+        if (!(await Assessment.exists({ subject: subject._id, cieSlot: qz.slot })))
+          await Assessment.updateOne(
+            { subject: subject._id, title: qz.title, cieSlot: null },
+            { $set: { cieSlot: qz.slot } },
+          );
       }
       // Tentative CIE calendar, staggered by a day per course.
       const plan = [
@@ -314,6 +325,8 @@ try {
     );
   }
 
+  // Students enrolled in every elective by the earlier rule are asked to choose instead.
+  const electivesReset = await resetUnchosenElectives();
   // Students who signed in before the subjects existed get enrolled now.
   let enrolled = 0;
   for (const student of await User.find({ role: 'student', isActive: true }).select('_id role')) {
@@ -330,7 +343,9 @@ try {
   console.log(
     `Created: ${counts.subjects || 0} subjects, ${counts.questions || 0} questions, ${counts.quizzes || 0} quiz drafts, ${counts.announcements || 0} announcements, ${counts.calendar || 0} calendar events (existing records left unchanged)`,
   );
-  console.log(`Enrolled ${enrolled} existing student(s) in the ${COURSES.length} semester subjects`);
+  console.log(
+    `Checked ${enrolled} existing student(s): enrolled in the ${COURSES.filter((c) => !c.electiveGroup).length} core subjects; ${electivesReset} asked to choose their elective again`,
+  );
 } finally {
   await db.close();
 }

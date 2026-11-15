@@ -5,6 +5,7 @@ import { BookOpen, Plus, Search } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useApi } from '../../hooks/useApi.js';
+import { ElectiveAdminCard, ElectivePrompt } from '../../components/domain/ElectiveChooser.jsx';
 import { Button, Card, EmptyState, Field, Input, Modal, MultiPicker, PageHeader, Select, Skeleton } from '../../components/ui/index.js';
 import { SubjectCard } from '../../components/domain/SubjectCard.jsx';
 
@@ -155,6 +156,7 @@ export default function Subjects() {
           )
         }
       />
+      {isAdmin ? <ElectiveAdminCard /> : user.role === 'student' && <ElectivePrompt compact onChosen={reload} />}
       {subjects.length > 3 && (
         <div className="mb-5 flex flex-wrap gap-2">
           <div className="relative min-w-[220px] flex-1 sm:max-w-sm">

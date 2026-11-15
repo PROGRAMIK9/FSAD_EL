@@ -15,6 +15,8 @@ const userSchema = new Schema(
     isActive: { type: Boolean, default: true },
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
     lastLoginAt: Date,
+    /** Chosen elective per group, e.g. { D: <subjectId> }. */
+    electives: { type: Map, of: Schema.Types.ObjectId },
   },
   opts,
 );
@@ -41,6 +43,11 @@ const subjectSchema = new Schema(
     syllabus: { type: Schema.Types.Mixed },
     /** New students are enrolled automatically when they first sign in. */
     autoEnroll: { type: Boolean, default: false },
+    /** Students choose one subject per elective group (e.g. "D"). */
+    electiveGroup: { type: String, uppercase: true, trim: true },
+    electiveLockedAt: Date,
+    /** When set, students can see their CIE marks for this subject. */
+    ciePublishedAt: Date,
     archivedAt: Date,
   },
   opts,
@@ -97,6 +104,8 @@ const assessmentSchema = new Schema(
     publishResultsAt: Date,
     pausedAt: Date,
     allowLateJoin: Boolean,
+    /** Which CIE quiz this assessment counts as (null: practice). */
+    cieSlot: { type: String, enum: ['QUIZ1', 'QUIZ2', null], default: null },
     proctoring: {
       enabled: { type: Boolean, default: true },
       requireFullscreen: { type: Boolean, default: true },
@@ -242,12 +251,12 @@ const roomSchema = new Schema(
 );
 const reviewSchema = new Schema(
   {
-    grade: Schema.Types.ObjectId,
-    student: Schema.Types.ObjectId,
+    grade: { type: Schema.Types.ObjectId, ref: 'Grade' },
+    student: { type: Schema.Types.ObjectId, ref: 'User' },
     message: String,
     status: { type: String, enum: ['OPEN', 'APPROVED', 'REJECTED'], default: 'OPEN' },
     response: String,
-    resolvedBy: Schema.Types.ObjectId,
+    resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   opts,
 );
@@ -321,6 +330,22 @@ const templateSchema = new Schema(
   { owner: Schema.Types.ObjectId, title: String, config: Schema.Types.Mixed },
   opts,
 );
+/** Teacher-entered CIE components for one student in one subject (quiz marks come from grades). */
+const cieRecordSchema = new Schema(
+  {
+    subject: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
+    student: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    test1: { type: Number, min: 0, max: 50 },
+    test2: { type: Number, min: 0, max: 50 },
+    el1: { type: Number, min: 0, max: 20 },
+    el2: { type: Number, min: 0, max: 20 },
+    labRecord: { type: Number, min: 0, max: 40 },
+    labTest: { type: Number, min: 0, max: 10 },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  },
+  opts,
+);
+cieRecordSchema.index({ subject: 1, student: 1 }, { unique: true });
 export const User = model('User', userSchema);
 export const Department = model('Department', departmentSchema);
 export const Subject = model('Subject', subjectSchema);
@@ -338,6 +363,7 @@ export const Room = model('Room', roomSchema);
 export const GradeReviewRequest = model('GradeReviewRequest', reviewSchema);
 export const AcademicCalendarEvent = model('AcademicCalendarEvent', calendarSchema);
 export const AssessmentTemplate = model('AssessmentTemplate', templateSchema);
+export const CieRecord = model('CieRecord', cieRecordSchema);
 export const AcademicYear = model('AcademicYear', academicYearSchema);
 export const Semester = model('Semester', semesterSchema);
 export const Section = model('Section', sectionSchema);

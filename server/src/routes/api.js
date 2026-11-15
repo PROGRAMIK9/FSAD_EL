@@ -5,7 +5,8 @@ import { assignmentUpload, storedPath } from '../middleware/upload.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, allow } from '../middleware/auth.js';
-import { authenticateGoogle, authenticateDev, devLoginEnabled } from '../services/auth.js';
+import jwt from 'jsonwebtoken';
+import { authenticateGoogle, authenticateDev, devLoginEnabled, signSession } from '../services/auth.js';
 import {
   User,
   Department,
@@ -39,11 +40,15 @@ import dashboardRoutes from './dashboard.js';
 import assessmentRoutes from './assessments.js';
 import questionRoutes from './questions.js';
 import attemptRoutes from './attempts.js';
+import electiveRoutes from './electives.js';
+import cieRoutes from './cie.js';
 const router = Router();
 router.use(dashboardRoutes);
 router.use(assessmentRoutes);
 router.use(questionRoutes);
 router.use(attemptRoutes);
+router.use(electiveRoutes);
+router.use(cieRoutes);
 const getPage = (req) => ({
   page: Math.max(1, Number(req.query.page) || 1),
   limit: Math.min(100, Math.max(1, Number(req.query.limit) || 25)),
@@ -94,7 +99,12 @@ router.post('/auth/logout', (req, res) => {
   });
   send(res, { loggedOut: true });
 });
-router.get('/auth/me', authenticate, (req, res) =>
+router.get('/auth/me', authenticate, (req, res) => {
+  // Sliding session: renew the cookie once more than half of its lifetime has passed.
+  const token = req.cookies?.accessToken;
+  const claims = token && jwt.decode(token);
+  if (claims?.iat && claims?.exp && Date.now() / 1000 - claims.iat > (claims.exp - claims.iat) / 2)
+    setSessionCookie(res, signSession(req.user));
   send(res, {
     user: {
       id: req.user.id,
@@ -105,8 +115,8 @@ router.get('/auth/me', authenticate, (req, res) =>
       department: req.user.department,
       semester: req.user.semester,
     },
-  }),
-);
+  });
+});
 router.get(
   '/admin/dashboard',
   authenticate,
@@ -669,10 +679,64 @@ for (const [action, allowedStates, nextState] of [
       send(res, a);
     }),
   );
+/** Grade ids a reviewer may see: every grade for admins, grades of taught subjects for teachers. */
+async function reviewableGradeIds(user) {
+  if (user.role === 'admin') return null;
+  const subjects = await Subject.find({ teachers: user._id }).distinct('_id');
+  const assessments = await Assessment.find({ subject: { $in: subjects } }).distinct('_id');
+  return Grade.find({ assessment: { $in: assessments } }).distinct('_id');
+}
+
+router.get(
+  '/grade-reviews',
+  authenticate,
+  allow('teacher', 'admin'),
+  wrap(async (req, res) => {
+    const { status } = z
+      .object({ status: z.enum(['OPEN', 'APPROVED', 'REJECTED', 'RESOLVED', 'ALL']).default('OPEN') })
+      .parse(req.query);
+    const grades = await reviewableGradeIds(req.user);
+    const filter = grades ? { grade: { $in: grades } } : {};
+    if (status === 'RESOLVED') filter.status = { $in: ['APPROVED', 'REJECTED'] };
+    else if (status !== 'ALL') filter.status = status;
+    const reviews = await GradeReviewRequest.find(filter)
+      .sort({ status: -1, createdAt: -1 })
+      .limit(500)
+      .populate('student', 'name usn email')
+      .populate('resolvedBy', 'name')
+      .populate({
+        path: 'grade',
+        select: 'rawMarks maxMarks attempt assessment publishedAt modificationReason',
+        populate: {
+          path: 'assessment',
+          select: 'title subject',
+          populate: { path: 'subject', select: 'code name' },
+        },
+      })
+      .lean();
+    send(res, reviews);
+  }),
+);
+
+router.get(
+  '/grade-reviews/summary',
+  authenticate,
+  allow('teacher', 'admin'),
+  wrap(async (req, res) => {
+    const grades = await reviewableGradeIds(req.user);
+    send(res, {
+      open: await GradeReviewRequest.countDocuments({
+        status: 'OPEN',
+        ...(grades ? { grade: { $in: grades } } : {}),
+      }),
+    });
+  }),
+);
+
 router.patch(
   '/grade-reviews/:id',
   authenticate,
-  allow('teacher'),
+  allow('teacher', 'admin'),
   wrap(async (req, res) => {
     const b = z
       .object({
@@ -686,15 +750,21 @@ router.patch(
       populate: { path: 'assessment', populate: { path: 'subject' } },
     });
     if (!review) return res.status(404).json({ ok: false, error: 'Review request not found' });
-    if (!review.grade.assessment.subject.teachers.some((x) => x.equals(req.user._id)))
+    if (
+      req.user.role !== 'admin' &&
+      !review.grade.assessment.subject.teachers.some((x) => x.equals(req.user._id))
+    )
       return res.status(403).json({ ok: false, error: 'Not authorized' });
+    if (review.status !== 'OPEN')
+      return res.status(409).json({ ok: false, error: 'This request was already resolved' });
+    // Validate before changing anything, so a rejected correction never leaves the request half-resolved.
+    if (b.status === 'APPROVED' && b.correctedMarks !== undefined && b.correctedMarks > review.grade.maxMarks)
+      return res.status(400).json({ ok: false, error: `Marks cannot exceed ${review.grade.maxMarks}` });
     review.status = b.status;
     review.response = b.response;
     review.resolvedBy = req.user._id;
     await review.save();
     if (b.status === 'APPROVED' && b.correctedMarks !== undefined) {
-      if (b.correctedMarks > review.grade.maxMarks)
-        return res.status(400).json({ ok: false, error: 'Marks exceed maximum' });
       review.grade.rawMarks = b.correctedMarks;
       review.grade.modifiedBy = req.user._id;
       review.grade.modificationReason = b.response;
@@ -705,6 +775,12 @@ router.patch(
       });
     }
     await audit(req, 'GRADE_REVIEW_RESOLVED', 'GradeReviewRequest', review._id, { status: b.status });
+    const changed = b.status === 'APPROVED' && b.correctedMarks !== undefined;
+    await notify(req.app, [review.student], {
+      title: b.status === 'APPROVED' ? 'Mark review accepted' : 'Mark review answered',
+      body: `${review.grade.assessment.title}: ${changed ? `your mark is now ${b.correctedMarks}/${review.grade.maxMarks}. ` : ''}${b.response}`,
+      href: `/results/${review.grade.assessment._id}`,
+    });
     send(res, review);
   }),
 );

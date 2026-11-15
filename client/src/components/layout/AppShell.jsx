@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { api } from '../../lib/api.js';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, ChevronsLeft, LogOut, Menu, Moon, Sun, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -27,9 +28,33 @@ export function Brand({ compact, onDark = false }) {
   );
 }
 
+/** Open review requests for staff, refreshed on navigation and when one is resolved. */
+function useOpenReviews(role) {
+  const { pathname } = useLocation();
+  const [open, setOpen] = useState(0);
+  useEffect(() => {
+    if (role !== 'teacher' && role !== 'admin') return undefined;
+    let alive = true;
+    const load = () =>
+      api
+        .get('/grade-reviews/summary')
+        .then((d) => alive && setOpen(d.open))
+        .catch(() => {});
+    load();
+    window.addEventListener('reviews:changed', load);
+    return () => {
+      alive = false;
+      window.removeEventListener('reviews:changed', load);
+    };
+  }, [role, pathname]);
+  return open;
+}
+
 function Sidebar({ collapsed, onCollapse, mobileOpen, onClose }) {
   const { user, logout } = useAuth();
   const { unread } = useNotifications();
+  const openReviews = useOpenReviews(user.role);
+  const badges = { '/notifications': unread, '/reviews': openReviews };
   const groups = visibleGroups(user.role);
   return (
     <>
@@ -67,8 +92,8 @@ function Sidebar({ collapsed, onCollapse, mobileOpen, onClose }) {
                         <>
                           <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-primary' : 'text-subtle group-hover:text-fg'}`} />
                           <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
-                          {to === '/notifications' && unread > 0 ? (
-                            <span className={`ml-auto rounded-full bg-primary px-1.5 text-[11px] font-bold text-white ${collapsed ? 'lg:absolute lg:right-2 lg:top-1' : ''}`}>{unread}</span>
+                          {badges[to] > 0 ? (
+                            <span className={`ml-auto rounded-full px-1.5 text-[11px] font-bold text-white ${to === '/reviews' ? 'bg-warn' : 'bg-primary'} ${collapsed ? 'lg:absolute lg:right-2 lg:top-1' : ''}`}>{badges[to]}</span>
                           ) : (
                             isActive && <span className={`ml-auto h-1.5 w-1.5 rounded-full bg-primary ${collapsed ? 'lg:hidden' : ''}`} />
                           )}

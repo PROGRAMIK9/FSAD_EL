@@ -9,11 +9,26 @@ export const SEMESTER = { number: 3, name: 'Semester III', startsAt: '2026-08-01
 
 /** CIE (theory) rubric shared by every theory course in the scheme. */
 export const CIE_THEORY = {
-  summary: 'TWO Quizzes (Q), TWO Tests (T) and ONE Experiential Learning (EL) component: 20 (Q) + 40 (T) + 40 (EL) = 100 marks.',
+  summary:
+    'TWO Quizzes (Q), TWO Tests (T) and ONE Experiential Learning (EL) component: 20 (Q) + 40 (T) + 40 (EL) = 100 marks.',
   components: [
-    { name: 'Quizzes', marks: 20, detail: 'Two quizzes in online/offline mode, 10 marks each; the sum of the two quizzes is the final quiz mark.' },
-    { name: 'Tests', marks: 40, detail: "Two descriptive tests of 50 marks each across Revised Bloom's Taxonomy levels, reduced to 40 marks. A minimum of 50% in tests and quizzes is required to clear CIE." },
-    { name: 'Experiential Learning', marks: 40, detail: 'Creativity and practical implementation of the problem: Phase I (20) and Phase II (20).' },
+    {
+      name: 'Quizzes',
+      marks: 20,
+      detail:
+        'Two quizzes in online/offline mode, 10 marks each; the sum of the two quizzes is the final quiz mark.',
+    },
+    {
+      name: 'Tests',
+      marks: 40,
+      detail:
+        "Two descriptive tests of 50 marks each across Revised Bloom's Taxonomy levels, reduced to 40 marks. A minimum of 50% in tests and quizzes is required to clear CIE.",
+    },
+    {
+      name: 'Experiential Learning',
+      marks: 40,
+      detail: 'Creativity and practical implementation of the problem: Phase I (20) and Phase II (20).',
+    },
   ],
 };
 const CIE_LAB = [
@@ -114,10 +129,19 @@ export const COURSES = [
       'Create a React application using react-router-dom with multiple pages (Home, About, Contact).',
     ],
     outcomes: [
-      { code: 'CO1', text: 'Demonstrate the core concepts of the Model-View-Controller (MVC) architecture and its role in structuring web applications.' },
-      { code: 'CO2', text: 'Apply the MVC pattern in building applications using the MERN stack components.' },
+      {
+        code: 'CO1',
+        text: 'Demonstrate the core concepts of the Model-View-Controller (MVC) architecture and its role in structuring web applications.',
+      },
+      {
+        code: 'CO2',
+        text: 'Apply the MVC pattern in building applications using the MERN stack components.',
+      },
       { code: 'CO3', text: 'Design and develop full-stack web applications using the MERN stack.' },
-      { code: 'CO4', text: 'Analyze the structure and functionality of web applications by implementing the MVC framework using the MERN stack.' },
+      {
+        code: 'CO4',
+        text: 'Analyze the structure and functionality of web applications by implementing the MVC framework using the MERN stack.',
+      },
     ],
     references: [
       'Subramanian, V., "Pro MERN Stack: Full Stack Web App Development with Mongo, Express, React, and Node", Apress, 2nd edition, 2019, ISBN 9781484243904.',
@@ -148,7 +172,7 @@ export const COURSES = [
         title: 'DevOps Culture and Docker Fundamentals',
         topics: [
           'The DevOps culture: getting started with DevOps',
-          "Docker fundamentals: discovering Docker, what and why of Docker, building a Docker application",
+          'Docker fundamentals: discovering Docker, what and why of Docker, building a Docker application',
           "Understanding Docker: Docker's architecture, the Docker daemon, the Docker client, Docker registries, Docker Hub",
         ],
       },
@@ -205,10 +229,22 @@ export const COURSES = [
       'Demonstrate the Kubernetes dashboard and CLI for cluster monitoring.',
     ],
     outcomes: [
-      { code: 'CO1', text: 'Understand the fundamentals of DevOps and demonstrate the use of Docker for container creation and management.' },
-      { code: 'CO2', text: 'Build and run Docker containers to simulate virtual environments and enable consistent development workflows.' },
-      { code: 'CO3', text: 'Develop automated CI/CD pipelines using Jenkins and Docker Hub to streamline integration and deployment processes.' },
-      { code: 'CO4', text: 'Deploy containerized applications on Kubernetes and manage pods, labels and namespaces for efficient workload orchestration.' },
+      {
+        code: 'CO1',
+        text: 'Understand the fundamentals of DevOps and demonstrate the use of Docker for container creation and management.',
+      },
+      {
+        code: 'CO2',
+        text: 'Build and run Docker containers to simulate virtual environments and enable consistent development workflows.',
+      },
+      {
+        code: 'CO3',
+        text: 'Develop automated CI/CD pipelines using Jenkins and Docker Hub to streamline integration and deployment processes.',
+      },
+      {
+        code: 'CO4',
+        text: 'Deploy containerized applications on Kubernetes and manage pods, labels and namespaces for efficient workload orchestration.',
+      },
     ],
     references: [
       'Gaurav Agarwal, "Modern DevOps Practices: Implement, secure, and manage applications on the public cloud by leveraging cutting-edge tools", Packt Publishing, 2nd edition, 2024, ISBN 9781805121824.',
@@ -222,6 +258,7 @@ export const COURSES = [
   },
   {
     code: 'MCA263D1',
+    electiveGroup: 'D',
     name: 'Advanced Internet of Things',
     credits: 3,
     ltp: '3-0-0',
@@ -292,10 +329,22 @@ export const COURSES = [
     ],
     lab: [],
     outcomes: [
-      { code: 'CO1', text: 'Analyze the architecture and design considerations for advanced IoT systems, including industrial applications.' },
-      { code: 'CO2', text: 'Compare and implement various IoT communication protocols beyond MQTT for efficient and secure data transmission.' },
-      { code: 'CO3', text: 'Develop secure IoT applications incorporating encryption, authentication and firmware integrity mechanisms, and deploy machine learning models on edge devices to enable local decision-making in IoT systems.' },
-      { code: 'CO4', text: 'Design data ingestion, storage and visualization pipelines for real-time monitoring and analytics, and integrate cloud and edge systems to create full-stack, intelligent and secure IoT solutions.' },
+      {
+        code: 'CO1',
+        text: 'Analyze the architecture and design considerations for advanced IoT systems, including industrial applications.',
+      },
+      {
+        code: 'CO2',
+        text: 'Compare and implement various IoT communication protocols beyond MQTT for efficient and secure data transmission.',
+      },
+      {
+        code: 'CO3',
+        text: 'Develop secure IoT applications incorporating encryption, authentication and firmware integrity mechanisms, and deploy machine learning models on edge devices to enable local decision-making in IoT systems.',
+      },
+      {
+        code: 'CO4',
+        text: 'Design data ingestion, storage and visualization pipelines for real-time monitoring and analytics, and integrate cloud and edge systems to create full-stack, intelligent and secure IoT solutions.',
+      },
     ],
     references: [
       'Rolando Herrero, "Practical Internet of Things Networking: Understanding IoT Layered Architecture", Springer, 2023, ISBN 978-3-031-28442-7.',
@@ -309,11 +358,17 @@ export const COURSES = [
       { label: 'Mosquitto MQTT Broker', url: 'https://mosquitto.org/' },
       { label: 'LoRaWAN Protocol Overview', url: 'https://lora-alliance.org/lorawan-specification/' },
       { label: 'CoAP Protocol (RFC 7252)', url: 'https://datatracker.ietf.org/doc/html/rfc7252' },
-      { label: 'ESP32 Technical Reference Manual', url: 'https://www.espressif.com/en/support/download/documents' },
+      {
+        label: 'ESP32 Technical Reference Manual',
+        url: 'https://www.espressif.com/en/support/download/documents',
+      },
       { label: 'Edge Impulse (ML on Microcontrollers)', url: 'https://docs.edgeimpulse.com/docs' },
       { label: 'ThingsBoard IoT Platform', url: 'https://thingsboard.io/docs/' },
       { label: 'Grafana Visualization Platform', url: 'https://grafana.com/docs/grafana/latest/' },
-      { label: 'TensorFlow Lite for Microcontrollers', url: 'https://www.tensorflow.org/lite/microcontrollers' },
+      {
+        label: 'TensorFlow Lite for Microcontrollers',
+        url: 'https://www.tensorflow.org/lite/microcontrollers',
+      },
       { label: 'OpenCV for Embedded Vision', url: 'https://opencv.org/platforms/embedded/' },
       { label: 'OWASP IoT Top 10 Security Risks', url: 'https://owasp.org/www-project-internet-of-things/' },
     ],
@@ -322,6 +377,7 @@ export const COURSES = [
   },
   {
     code: 'MCA263D2',
+    electiveGroup: 'D',
     name: 'Deep Learning',
     credits: 3,
     ltp: '3-0-0',
@@ -386,9 +442,18 @@ export const COURSES = [
     ],
     lab: [],
     outcomes: [
-      { code: 'CO1', text: 'Apply basic concepts of neural networks, their applications and various learning models.' },
-      { code: 'CO2', text: 'Analyse different network architectures, learning tasks, convolutional networks and deep learning models.' },
-      { code: 'CO3', text: 'Assess neural network models and learning techniques to solve problems related to society and industry.' },
+      {
+        code: 'CO1',
+        text: 'Apply basic concepts of neural networks, their applications and various learning models.',
+      },
+      {
+        code: 'CO2',
+        text: 'Analyse different network architectures, learning tasks, convolutional networks and deep learning models.',
+      },
+      {
+        code: 'CO3',
+        text: 'Assess neural network models and learning techniques to solve problems related to society and industry.',
+      },
       { code: 'CO4', text: 'Demonstrate a prototype application developed using any NN tools and APIs.' },
     ],
     references: [
@@ -402,6 +467,7 @@ export const COURSES = [
   },
   {
     code: 'MCA263D3',
+    electiveGroup: 'D',
     name: 'Advanced Computer Networks',
     credits: 3,
     ltp: '3-0-0',
@@ -428,7 +494,7 @@ export const COURSES = [
         hours: 9,
         title: 'Wireless LANs, PANs, WANs and MANs',
         topics: [
-          "Wireless LANs and PANs: fundamentals of WLANs, 802.11 standards, HIPERLAN standard",
+          'Wireless LANs and PANs: fundamentals of WLANs, 802.11 standards, HIPERLAN standard',
           'Bluetooth specifications, transport protocol group, ZigBee specification',
           'Wireless WANs and MANs: the cellular concept and cellular architecture, capacity enhancement, channel allocation algorithms',
         ],
@@ -470,7 +536,10 @@ export const COURSES = [
       { code: 'CO1', text: 'Apply the advanced networking concepts.' },
       { code: 'CO2', text: 'Identify various networking classifications in day-to-day computing.' },
       { code: 'CO3', text: 'Analyze the importance of routing and congestion control principles.' },
-      { code: 'CO4', text: 'Assess the different routing protocol methods in the networking support layers.' },
+      {
+        code: 'CO4',
+        text: 'Assess the different routing protocol methods in the networking support layers.',
+      },
     ],
     references: [
       'James F. Kurose, Keith W. Ross, "Computer Networking: A Top-Down Approach", Pearson Education, 8th edition, 2023, ISBN 978-0136685208.',
@@ -482,6 +551,7 @@ export const COURSES = [
   },
   {
     code: 'MCA263D4',
+    electiveGroup: 'D',
     name: 'Principles of UI/UX Design',
     credits: 3,
     ltp: '3-0-0',
@@ -545,9 +615,18 @@ export const COURSES = [
     ],
     lab: [],
     outcomes: [
-      { code: 'CO1', text: 'Apply the theoretical foundations and awareness of User Interface and User Experience design.' },
-      { code: 'CO2', text: 'Design based on the knowledge of features, approach and patterns for designing UI and UX for cross-platform applications.' },
-      { code: 'CO3', text: 'Identify and apply various design skills in UI and UX for real-world applications.' },
+      {
+        code: 'CO1',
+        text: 'Apply the theoretical foundations and awareness of User Interface and User Experience design.',
+      },
+      {
+        code: 'CO2',
+        text: 'Design based on the knowledge of features, approach and patterns for designing UI and UX for cross-platform applications.',
+      },
+      {
+        code: 'CO3',
+        text: 'Identify and apply various design skills in UI and UX for real-world applications.',
+      },
       { code: 'CO4', text: 'Evaluate UI/UX design processes and artifacts for building products.' },
     ],
     references: [
@@ -559,7 +638,10 @@ export const COURSES = [
     ],
     resources: [
       { label: 'UX/UI design tools (Maze)', url: 'https://maze.co/collections/ux-ui-design/tools/#list' },
-      { label: 'Dark patterns in UX (CareerFoundry)', url: 'https://careerfoundry.com/en/blog/ux-design/dark-patterns-ux/' },
+      {
+        label: 'Dark patterns in UX (CareerFoundry)',
+        url: 'https://careerfoundry.com/en/blog/ux-design/dark-patterns-ux/',
+      },
     ],
     cie: CIE_THEORY,
     see: SEE_THEORY,
@@ -591,7 +673,10 @@ export const COURSES = [
       cie: [
         { name: 'Phase I: approval of topic, problem statement, objectives and synopsis', weight: '10%' },
         { name: 'Phase II: applying appropriate tools/techniques to design a solution', weight: '30%' },
-        { name: 'Phase III: experimental results, analysis, testing, presentation, report and paper publication', weight: '60%' },
+        {
+          name: 'Phase III: experimental results, analysis, testing, presentation, report and paper publication',
+          weight: '60%',
+        },
       ],
       see: [
         { name: 'Write-up', weight: '20%' },
@@ -601,10 +686,22 @@ export const COURSES = [
       note: 'SEE is conducted by an external examiner (domain expert) and an internal examiner, in batches of at most 6 students.',
     },
     outcomes: [
-      { code: 'CO1', text: 'Analyze research gaps, formulate the problem definition, conceptualize the objectives and design a solution to cater to specific problems.' },
-      { code: 'CO2', text: 'Apply higher-order thinking skills and develop competencies specific to the programme specialization to implement real-world problems with professional ethical standards.' },
-      { code: 'CO3', text: 'Demonstrate skill and knowledge by applying appropriate tools and techniques specific to their domain.' },
-      { code: 'CO4', text: 'Communicate, work in teams and demonstrate learning through oral presentations and report writing.' },
+      {
+        code: 'CO1',
+        text: 'Analyze research gaps, formulate the problem definition, conceptualize the objectives and design a solution to cater to specific problems.',
+      },
+      {
+        code: 'CO2',
+        text: 'Apply higher-order thinking skills and develop competencies specific to the programme specialization to implement real-world problems with professional ethical standards.',
+      },
+      {
+        code: 'CO3',
+        text: 'Demonstrate skill and knowledge by applying appropriate tools and techniques specific to their domain.',
+      },
+      {
+        code: 'CO4',
+        text: 'Communicate, work in teams and demonstrate learning through oral presentations and report writing.',
+      },
     ],
     references: [],
   },
@@ -623,7 +720,7 @@ export const COURSES = [
     units: [],
     guidelines: [
       'Students can undergo an internship at industry or research organizations such as BEL, DRDO, ISRO or NAL.',
-      'A letter from the organization on its letterhead, signed by an authorized person, must state the candidate\'s name and the internship duration.',
+      "A letter from the organization on its letterhead, signed by an authorized person, must state the candidate's name and the internship duration.",
       'The internship lasts 6 weeks full time, after the II semester final exams and before the III semester begins.',
       'Students can approach RVCE Centres of Excellence (CoE) and Centres of Competence (CoC) for domain training or internships (https://rvce.edu.in/rvce-center-excellence).',
       'The internship must relate to the specialization of the PG programme.',
@@ -633,8 +730,14 @@ export const COURSES = [
     ],
     evaluation: {
       cie: [
-        { name: 'Review I: comprehending the functioning of the organization; applying engineering knowledge, critical thinking and analysis', weight: '40%' },
-        { name: 'Review II: skill competencies, resource management and sustainability; presentation and report writing', weight: '60%' },
+        {
+          name: 'Review I: comprehending the functioning of the organization; applying engineering knowledge, critical thinking and analysis',
+          weight: '40%',
+        },
+        {
+          name: 'Review II: skill competencies, resource management and sustainability; presentation and report writing',
+          weight: '60%',
+        },
       ],
       see: [
         { name: 'Write-up', weight: '20%' },
@@ -644,10 +747,22 @@ export const COURSES = [
       note: 'CIE committee: guide, a Professor/Associate Professor and an Assistant Professor. SEE by an external and an internal examiner, in batches of at most 6 students.',
     },
     outcomes: [
-      { code: 'CO1', text: 'Explore the workplace, operating procedures of the department/company and its products, and other organizational concepts.' },
-      { code: 'CO2', text: 'Learn and improve writing and communication skills, research and technology, teamwork and leadership skills.' },
-      { code: 'CO3', text: 'Apply higher-order thinking skills (critical thinking, analysis, synthesis) to evaluate and solve complex real-world problems with professional ethical standards.' },
-      { code: 'CO4', text: 'Develop and demonstrate skill competencies and knowledge specific to the programme specialization by applying appropriate tools and techniques.' },
+      {
+        code: 'CO1',
+        text: 'Explore the workplace, operating procedures of the department/company and its products, and other organizational concepts.',
+      },
+      {
+        code: 'CO2',
+        text: 'Learn and improve writing and communication skills, research and technology, teamwork and leadership skills.',
+      },
+      {
+        code: 'CO3',
+        text: 'Apply higher-order thinking skills (critical thinking, analysis, synthesis) to evaluate and solve complex real-world problems with professional ethical standards.',
+      },
+      {
+        code: 'CO4',
+        text: 'Develop and demonstrate skill competencies and knowledge specific to the programme specialization by applying appropriate tools and techniques.',
+      },
     ],
     references: [],
   },

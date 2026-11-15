@@ -44,6 +44,35 @@ function checkQuestion(q) {
   }
 }
 
+export const MAX_BATCH = 100;
+const batchItem = z.object(questionFields).omit({ subject: true });
+
+/**
+ * Validates a batch of questions (for example drafts read from a scanned paper) without touching
+ * the database. Returns the cleaned questions and one `{ index, error }` per rejected item.
+ */
+export function validateQuestionBatch(items) {
+  if (!Array.isArray(items) || !items.length) throw httpError(400, 'Add at least one question');
+  if (items.length > MAX_BATCH) throw httpError(400, `Import at most ${MAX_BATCH} questions at a time`);
+  const questions = [];
+  const errors = [];
+  items.forEach((item, index) => {
+    const parsed = batchItem.safeParse(item);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const where = issue.path.length ? `${issue.path.join('.')}: ` : '';
+      return errors.push({ index, error: `${where}${issue.message}` });
+    }
+    try {
+      checkQuestion(parsed.data);
+      questions.push(parsed.data);
+    } catch (err) {
+      errors.push({ index, error: err.message });
+    }
+  });
+  return { questions, errors };
+}
+
 async function loadEditable(id, user) {
   if (!oid(id)) throw httpError(400, 'Invalid id');
   const q = await Question.findById(id).populate('subject', 'teachers');
@@ -113,6 +142,36 @@ router.post(
     const q = await Question.create({ ...b, creator: req.user._id });
     await audit(req, 'QUESTION_CREATED', 'Question', q._id);
     send(res, q, 201);
+  }),
+);
+
+router.post(
+  '/questions/bulk',
+  authenticate,
+  allow('teacher', 'admin'),
+  wrap(async (req, res) => {
+    const { subject: subjectId, questions: items } = z
+      .object({ subject: questionFields.subject, questions: z.array(z.unknown()) })
+      .parse(req.body);
+    const subject = await Subject.findById(subjectId);
+    if (!subject) throw httpError(404, 'Subject not found');
+    if (!teachesSubject(subject, req.user)) throw httpError(403, 'Not allocated to subject');
+    const { questions, errors } = validateQuestionBatch(items);
+    if (errors.length)
+      return res.status(400).json({
+        ok: false,
+        error: `${errors.length} question${errors.length === 1 ? ' needs' : 's need'} fixing before import`,
+        data: { errors },
+      });
+    const created = await Question.insertMany(
+      questions.map((q) => ({ ...q, subject: subject._id, creator: req.user._id })),
+      { ordered: true },
+    );
+    await audit(req, 'QUESTIONS_IMPORTED', 'Question', undefined, {
+      count: created.length,
+      subject: subject._id,
+    });
+    send(res, { imported: created.length }, 201);
   }),
 );
 

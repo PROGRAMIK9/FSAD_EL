@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+client/dist
+.git
+.env
+.env.*
+.data
+docs/report
+scheme-syllabus
+coverage
+e2e/test-results
+e2e/playwright-report
+uploads
+server/storage

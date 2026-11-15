@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyEvent, limitReached, policyOf, severityOf, DEFAULT_POLICY, MERGE_WINDOW_MS } from '../src/services/proctoring.js';
+import {
+  classifyEvent,
+  limitReached,
+  policyOf,
+  severityOf,
+  DEFAULT_POLICY,
+  MERGE_WINDOW_MS,
+} from '../src/services/proctoring.js';
 
 const policy = { ...DEFAULT_POLICY };
 const at = (ms) => new Date(Date.UTC(2026, 10, 10, 10, 0, 0) + ms);

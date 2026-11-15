@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+// Production builds are served by the API itself, so they call the same origin.
+export const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api');
 
 export const api = axios.create({
   baseURL: API_BASE,
