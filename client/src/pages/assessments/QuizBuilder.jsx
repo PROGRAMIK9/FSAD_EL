@@ -57,6 +57,7 @@ const emptyQuiz = {
   startsAt: '',
   endsAt: '',
   durationMinutes: 20,
+  category: 'Quiz',
   cieSlot: '',
   attemptsAllowed: 1,
   randomizeQuestions: true,
@@ -75,6 +76,7 @@ function fromAssessment(a) {
     endsAt: toLocalInput(a.endsAt),
     durationMinutes: a.durationMinutes,
     attemptsAllowed: a.attemptsAllowed,
+    category: a.category || 'Quiz',
     cieSlot: a.cieSlot || '',
     randomizeQuestions: Boolean(a.randomizeQuestions),
     randomizeOptions: Boolean(a.randomizeOptions),
@@ -113,7 +115,9 @@ function MarksMeter({ total }) {
   );
 }
 
-function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank, reloadBank, loading }) {
+function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank: fullBank, reloadBank, loading, category = 'Quiz' }) {
+  // Quizzes take MCQ and fill-in questions; labs also take coding questions.
+  const bank = useMemo(() => (category === 'Lab' ? fullBank : fullBank.filter((q) => q.type !== 'code')), [fullBank, category]);
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
   const [creating, setCreating] = useState(false);
@@ -147,6 +151,7 @@ function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank, r
             <option value="">All types</option>
             <option value="single">Multiple choice</option>
             <option value="fill_blank">Fill in</option>
+            {category === 'Lab' && <option value="code">Coding</option>}
           </select>
           <Button icon={Plus} onClick={() => setCreating(true)}>
             New question
@@ -170,7 +175,7 @@ function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank, r
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-sm font-medium text-fg">{q.text}</span>
                       <span className="mt-1 flex flex-wrap gap-1.5 text-xs text-muted">
-                        <Badge tone="primary">{q.type === 'single' ? 'MCQ' : 'Fill in'}</Badge>
+                        <Badge tone="primary">{q.type === 'single' ? 'MCQ' : q.type === 'code' ? 'Coding' : 'Fill in'}</Badge>
                         <Badge>{q.difficulty}</Badge>
                         {q.topic && <span>{q.topic}</span>}
                       </span>
@@ -520,10 +525,29 @@ export default function QuizBuilder() {
                   ))}
                 </Select>
                 <Input label="Title" required placeholder="e.g. Unit 2 quiz: Trees and graphs" error={formState.errors.title?.message} {...register('title')} />
-                <Select label="Counts towards CIE as" hint="Quiz 1 and Quiz 2 marks fill the CIE sheet automatically. Each subject has one of each." {...register('cieSlot')}>
+                <Select
+                  label="Kind"
+                  hint={values.category === 'Lab' ? 'A lab can include coding questions that are compiled, run and auto-graded against test cases.' : 'MCQ and fill-in questions only.'}
+                  {...register('category', {
+                    onChange: (e) => {
+                      setValue('cieSlot', '');
+                      if (e.target.value !== 'Lab') setValue('questionIds', values.questionIds.filter((id) => bank.data.find((q) => String(q._id) === id)?.type !== 'code'));
+                    },
+                  })}
+                >
+                  <option value="Quiz">Quiz</option>
+                  <option value="Lab">Lab (coding)</option>
+                </Select>
+                <Select label="Counts towards CIE as" error={formState.errors.cieSlot?.message} hint={values.category === 'Lab' ? 'The lab test mark fills the CIE sheet automatically for subjects with a lab.' : 'Quiz 1 and Quiz 2 marks fill the CIE sheet automatically. Each subject has one of each.'} {...register('cieSlot')}>
                   <option value="">Practice (not counted)</option>
-                  <option value="QUIZ1">Quiz 1 (10 marks)</option>
-                  <option value="QUIZ2">Quiz 2 (10 marks)</option>
+                  {values.category === 'Lab' ? (
+                    <option value="LAB_TEST">Lab test (10 marks)</option>
+                  ) : (
+                    <>
+                      <option value="QUIZ1">Quiz 1 (10 marks)</option>
+                      <option value="QUIZ2">Quiz 2 (10 marks)</option>
+                    </>
+                  )}
                 </Select>
                 <Textarea label="Instructions for students" rows={4} placeholder="Optional. Shown on the rules screen before the quiz starts." {...register('description')} />
               </div>
@@ -539,6 +563,7 @@ export default function QuizBuilder() {
               bank={bank.data}
               reloadBank={bank.reload}
               loading={bank.loading}
+              category={values.category}
             />
           )}
 

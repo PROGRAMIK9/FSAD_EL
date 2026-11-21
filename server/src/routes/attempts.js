@@ -505,13 +505,6 @@ router.get(
         .lean(),
       Attempt.find({ assessment: a._id }).select('-optionOrders').sort({ attemptNumber: -1 }).lean(),
     ]);
-    const runs = await finalRuns({ assessment: a._id });
-    const runsOf = new Map();
-    for (const r of runs) {
-      const key = String(r.attempt);
-      if (!runsOf.has(key)) runsOf.set(key, []);
-      runsOf.get(key).push(r);
-    }
     const latest = new Map();
     for (const at of attempts) if (!latest.has(String(at.student))) latest.set(String(at.student), at);
     const roster = students.map((s) => {
@@ -527,6 +520,7 @@ router.get(
           submittedAt: at.submittedAt,
           submitReason: at.submitReason,
           score: at.score,
+          gradingStatus: at.gradingStatus,
           answered: answeredCount(at.answers || []),
           total: at.questionOrder.length,
           violationCount: at.violationCount || 0,
@@ -600,6 +594,13 @@ router.get(
     const latest = new Map();
     for (const at of attempts) if (!latest.has(String(at.student))) latest.set(String(at.student), at);
     const gradeOf = new Map(grades.map((g) => [String(g.student), g]));
+    const runs = await finalRuns({ assessment: a._id });
+    const runsOf = new Map();
+    for (const r of runs) {
+      const key = String(r.attempt);
+      if (!runsOf.has(key)) runsOf.set(key, []);
+      runsOf.get(key).push(r);
+    }
     const paper = a.questionIds.map((id) => questions.find((q) => q._id.equals(id))).filter(Boolean);
     const max = a.maxMarks || 10;
 

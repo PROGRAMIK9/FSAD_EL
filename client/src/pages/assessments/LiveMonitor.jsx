@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Clock, Crown, History, MessageSquare, Pause, Play, Plus, Search, Send, ShieldAlert, Square, Trophy, Users } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Clock, Crown, History, Loader2, MessageSquare, Pause, Play, Plus, Search, Send, ShieldAlert, Square, Trophy, Users } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { getSocket } from '../../lib/socket.js';
 import { useApi } from '../../hooks/useApi.js';
@@ -155,7 +155,7 @@ export default function LiveMonitor() {
 
   useSocketEvent('monitor:attempt-started', softReload);
   useSocketEvent('monitor:submitted', (p) => {
-    patchAttempt(p.attemptId, { state: 'SUBMITTED', submitReason: p.submitReason, score: p.score, submittedAt: p.submittedAt });
+    patchAttempt(p.attemptId, { state: 'SUBMITTED', submitReason: p.submitReason, score: p.score, submittedAt: p.submittedAt, gradingStatus: p.grading ? 'pending' : 'done' });
     if (p.submitReason === 'PROCTORING_LIMIT') toast(`${nameOf(p.attemptId) || 'A student'} was auto-submitted (warning limit)`, { icon: '🛑' });
   });
   useSocketEvent('monitor:progress', (p) => patchAttempt(p.attemptId, { answered: p.answered, total: p.total, lastSeenAt: p.at, online: true }));
@@ -363,6 +363,10 @@ export default function LiveMonitor() {
                           <span className={`inline-flex items-center gap-1 font-mono text-sm tabular-nums ${left < 60 ? 'text-danger' : left < 300 ? 'text-warn' : ''}`}>
                             <Clock className="h-3.5 w-3.5" />
                             {a.state === 'PAUSED' ? 'paused' : fmtDuration(left)}
+                          </span>
+                        ) : at?.gradingStatus === 'pending' ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-info">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Grading…
                           </span>
                         ) : at?.score != null ? (
                           <span className="font-display font-bold">{at.score}/{a.maxMarks ?? 10}</span>

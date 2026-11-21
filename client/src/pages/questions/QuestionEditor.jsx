@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { ArrowDown, ArrowUp, CheckCircle2, Circle, ListChecks, Plus, TextCursorInput, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckCircle2, Circle, Code2, ListChecks, Plus, TextCursorInput, Trash2 } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { OPTION_KEYS, fromQuestion, questionFormSchema, toQuestionPayload } from '../../lib/schemas.js';
 import { Alert, Button, Field, Input, Select, Textarea } from '../../components/ui/index.js';
 import { QuestionPreview } from '../../components/domain/QuestionPreview.jsx';
+import { CodeQuestionFields } from './CodeQuestionFields.jsx';
 
 function Segmented({ value, onChange, options }) {
   return (
@@ -40,7 +41,7 @@ export function QuestionEditor({ subjects, question, initial, defaultSubject, lo
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm({ resolver: zodResolver(questionFormSchema), defaultValues: fromQuestion(question || initial, defaultSubject || subjects[0]?._id || '') });
   const { fields, append, remove, move } = useFieldArray({ control, name: 'options' });
   const values = watch();
@@ -97,14 +98,25 @@ export function QuestionEditor({ subjects, question, initial, defaultSubject, lo
               options={[
                 { value: 'single', label: 'Multiple choice', icon: ListChecks },
                 { value: 'fill_blank', label: 'Fill in', icon: TextCursorInput },
+                ...(onSubmit ? [] : [{ value: 'code', label: 'Coding', icon: Code2 }]),
               ]}
             />
           </Field>
         </div>
 
-        <Textarea label="Question" required rows={3} placeholder="e.g. Which data structure uses first-in, first-out order?" error={errors.text?.message} {...register('text')} data-autofocus />
+        <Textarea
+          label={values.type === 'code' ? 'Problem statement' : 'Question'}
+          required
+          rows={values.type === 'code' ? 8 : 3}
+          placeholder={values.type === 'code' ? 'Describe the task, the input format, the output format and the constraints.' : 'e.g. Which data structure uses first-in, first-out order?'}
+          error={errors.text?.message}
+          {...register('text')}
+          data-autofocus
+        />
 
-        {values.type === 'single' ? (
+        {values.type === 'code' ? (
+          <CodeQuestionFields control={control} register={register} watch={watch} setValue={setValue} errors={errors} questionId={question?._id} dirty={isDirty} />
+        ) : values.type === 'single' ? (
           <Field label="Options" hint="Click the circle to mark the correct answer." error={errors.options?.message || errors.options?.root?.message || errors.correctIndex?.message}>
             <ul className="space-y-2">
               {fields.map((field, i) => {

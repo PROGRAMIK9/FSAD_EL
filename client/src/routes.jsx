@@ -14,6 +14,9 @@ const MyGrades = lazy(() => import('./pages/grades/MyGrades.jsx'));
 const Evaluation = lazy(() => import('./pages/grades/Evaluation.jsx'));
 const Reviews = lazy(() => import('./pages/grades/Reviews.jsx'));
 const QuestionBank = lazy(() => import('./pages/questions/QuestionBank.jsx'));
+const Practice = lazy(() => import('./pages/practice/Practice.jsx'));
+const PracticeProblem = lazy(() => import('./pages/practice/PracticeProblem.jsx'));
+const Playground = lazy(() => import('./pages/practice/Playground.jsx'));
 const ExamPage = lazy(() => import('./pages/exam/ExamPage.jsx'));
 const ExamRoom = lazy(() => import('./pages/exam/ExamRoom.jsx'));
 const AttemptRedirect = lazy(() => import('./pages/exam/ExamRoom.jsx').then((m) => ({ default: m.AttemptRedirect })));
@@ -53,6 +56,9 @@ export const appRoutes = [
   { path: '/reviews', element: <Reviews />, roles: T },
   { path: '/grades', element: <MyGrades />, roles: ['student'] },
   { path: '/questions', element: <QuestionBank />, roles: T },
+  { path: '/practice', element: <Practice /> },
+  { path: '/practice/playground', element: <Playground /> },
+  { path: '/practice/:id', element: <PracticeProblem /> },
   { path: '/assignments', element: <Legacy.Assignments /> },
   { path: '/announcements', element: <Legacy.Announcements /> },
   { path: '/calendar', element: <Legacy.CalendarPage /> },

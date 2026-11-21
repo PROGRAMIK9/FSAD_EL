@@ -75,6 +75,7 @@ export default function QuestionBank() {
             <option value="">All types</option>
             <option value="single">Multiple choice</option>
             <option value="fill_blank">Fill in</option>
+            <option value="code">Coding</option>
           </select>
           <select className="input w-auto" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} aria-label="Difficulty">
             <option value="">Any difficulty</option>

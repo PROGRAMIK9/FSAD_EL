@@ -89,6 +89,8 @@ test('teacher ends the quiz, publishes the result and exports the workbook', asy
   await expect(page.getByText('Quiz ended')).toBeVisible();
 
   await page.goto('/evaluation');
+  // Other specs may have graded assessments too; pick this quiz.
+  await page.getByRole('tab').filter({ hasText: QUIZ_TITLE }).click();
   await page.getByRole('button', { name: /Publish all/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Publish all' }).click();
   await expect(page.getByText(/Result published|Published 1 results/)).toBeVisible();
