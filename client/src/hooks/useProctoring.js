@@ -10,6 +10,29 @@ const BLOCKED_KEYS = new Set(['p', 's', 'u']); // print, save, view-source
 const CLIPBOARD_KEYS = new Set(['c', 'v', 'x']);
 const DEVTOOLS_KEYS = new Set(['i', 'j', 'c']);
 
+/** True when an event happened inside a code editor (marked with data-code-editor). */
+export const inCodeEditor = (target) => Boolean(target?.closest?.('[data-code-editor]'));
+
+/** Line endings and trailing spaces differ between copy and paste; compare without them. */
+const clipText = (s) => String(s ?? '').replace(/\r\n?/g, '\n').replace(/\s+$/, '');
+
+/**
+ * Clipboard rule for code questions: copying and cutting inside the editor are allowed, and
+ * pasting is allowed only when the text was copied from the editor during this attempt.
+ * Exported for tests.
+ */
+export function createCodeClipboard() {
+  const copied = new Set();
+  return {
+    remember: (text) => {
+      const t = clipText(text);
+      if (t) copied.add(t);
+      if (copied.size > 50) copied.delete(copied.values().next().value);
+    },
+    allows: (text) => !clipText(text) || copied.has(clipText(text)),
+  };
+}
+
 /** Returns the reportable shortcut a keydown represents, or null. Exported for tests. */
 export function blockedShortcut(e, policy) {
   const key = (e.key || '').toLowerCase();
@@ -21,7 +44,7 @@ export function blockedShortcut(e, policy) {
     if (mod && BLOCKED_KEYS.has(key)) return `Ctrl+${key.toUpperCase()}`;
     if (key === 'printscreen') return 'PrintScreen';
   }
-  if (policy.blockClipboard && mod && !e.shiftKey && CLIPBOARD_KEYS.has(key)) {
+  if (policy.blockClipboard && mod && !e.shiftKey && CLIPBOARD_KEYS.has(key) && !inCodeEditor(e.target)) {
     // Allow copy/paste inside the student's own answer box only when clipboard is not blocked.
     return `Ctrl+${key.toUpperCase()}`;
   }
@@ -92,13 +115,39 @@ export function useProctoring({ active, policy, attemptId, report, onBlocked, on
         if (!document.fullscreenElement) send('FULLSCREEN_EXIT');
       });
 
-    if (policy.blockClipboard)
-      for (const type of ['copy', 'cut', 'paste'])
+    if (policy.blockClipboard) {
+      const codeClip = createCodeClipboard();
+      const block = (e, type) => {
+        e.preventDefault();
+        e.stopPropagation();
+        send(type.toUpperCase());
+        blockedRef.current?.(type === 'paste' ? 'Pasting is disabled during this quiz' : 'Copying is disabled during this quiz');
+      };
+      // Capture phase, so the code editor never sees a blocked paste.
+      for (const type of ['copy', 'cut'])
+        on(
+          document,
+          type,
+          (e) => {
+            if (!inCodeEditor(e.target)) block(e, type);
+          },
+          true,
+        );
+      // Bubble phase: the editor has filled the clipboard by now.
+      for (const type of ['copy', 'cut'])
         on(document, type, (e) => {
-          e.preventDefault();
-          send(type.toUpperCase());
-          blockedRef.current?.(type === 'paste' ? 'Pasting is disabled during this quiz' : 'Copying is disabled during this quiz');
+          if (inCodeEditor(e.target)) codeClip.remember(e.clipboardData?.getData('text/plain') || document.getSelection()?.toString());
         });
+      on(
+        document,
+        'paste',
+        (e) => {
+          if (inCodeEditor(e.target) && codeClip.allows(e.clipboardData?.getData('text/plain'))) return;
+          block(e, 'paste');
+        },
+        true,
+      );
+    }
 
     if (policy.blockContextMenu) {
       on(document, 'contextmenu', (e) => {

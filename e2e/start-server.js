@@ -24,6 +24,7 @@ const env = {
   MONGODB_DB: dbName,
   NODE_ENV: 'e2e',
   E2E: 'true',
+  JUDGE_MODE: 'fake',
   DEV_LOGIN: 'true',
   SERVE_CLIENT: 'true',
   JWT_SECRET: process.env.JWT_SECRET || 'e2e-only-secret-not-for-production',

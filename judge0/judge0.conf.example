@@ -1,0 +1,64 @@
+# Copy to judge0.conf and fill in the CHANGE_ME values. Keep judge0.conf out of git.
+# Full reference: https://github.com/judge0/judge0/blob/v1.13.1/judge0.conf
+
+################################################################################
+# Access: the app sends this token as X-Auth-Token (JUDGE0_AUTH_TOKEN in the app).
+################################################################################
+AUTHN_HEADER=X-Auth-Token
+AUTHN_TOKEN=CHANGE_ME_long_random_token
+
+################################################################################
+# Features we do not use: keep them off.
+################################################################################
+ENABLE_WAIT_RESULT=false
+ENABLE_COMPILER_OPTIONS=false
+ENABLE_COMMAND_LINE_ARGUMENTS=false
+ENABLE_SUBMISSION_DELETE=false
+ENABLE_CALLBACKS=false
+ENABLE_ADDITIONAL_FILES=false
+# No network inside the sandbox, and clients cannot turn it on.
+ENABLE_NETWORK=false
+ALLOW_ENABLE_NETWORK=false
+
+################################################################################
+# Capacity. The app never has more than JUDGE_MAX_INFLIGHT (default 40) executions
+# here at once, so the queue only needs headroom above that.
+################################################################################
+MAX_QUEUE_SIZE=2000
+# One worker per vCPU is a good start (8 on the recommended 8 vCPU VM).
+COUNT=8
+# The app splits larger batches (JUDGE0_BATCH_SIZE, default 20).
+MAX_SUBMISSION_BATCH_SIZE=20
+
+################################################################################
+# Per-run limits. The app sends its own (from each question) within these maxima.
+################################################################################
+CPU_TIME_LIMIT=2
+MAX_CPU_TIME_LIMIT=12
+CPU_EXTRA_TIME=0.5
+WALL_TIME_LIMIT=5
+MAX_WALL_TIME_LIMIT=25
+MEMORY_LIMIT=256000
+MAX_MEMORY_LIMIT=512000
+STACK_LIMIT=64000
+MAX_STACK_LIMIT=128000
+MAX_PROCESSES_AND_OR_THREADS=64
+MAX_MAX_PROCESSES_AND_OR_THREADS=128
+ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=false
+ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=false
+MAX_FILE_SIZE=1024
+MAX_MAX_FILE_SIZE=4096
+NUMBER_OF_RUNS=1
+
+################################################################################
+# Internal services (names match docker-compose.yml).
+################################################################################
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=CHANGE_ME_redis_password
+
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+POSTGRES_DB=judge0
+POSTGRES_USER=judge0
+POSTGRES_PASSWORD=CHANGE_ME_postgres_password

@@ -14,6 +14,8 @@ import { connectDB } from './config/db.js';
 import { apiLimiter, signInLimiter } from './middleware/rate-limits.js';
 import api from './routes/api.js';
 import { submitExpiredAttempts } from './services/attempts.js';
+import { startCodeRunner } from './services/code-runner.js';
+import { resolveLanguageIds } from './services/judge0.js';
 import { advanceAssessmentStates } from './services/assessment-schedule.js';
 import { registerSocketHandlers } from './realtime/socket.js';
 import { setIO } from './services/realtime.js';
@@ -117,7 +119,10 @@ if (process.env.NODE_ENV !== 'test')
 if (process.env.NODE_ENV !== 'test') {
   const port = Number(process.env.PORT) || 4000;
   connectDB()
-    .then(() => server.listen(port, () => console.log(`RVCE Academic Hub API listening on ${port}`)))
+    .then(() => {
+      server.listen(port, () => console.log(`RVCE Academic Hub API listening on ${port}`));
+      resolveLanguageIds().finally(startCodeRunner);
+    })
     .catch((err) => {
       console.error('Database connection failed:', err.message);
       process.exit(1);

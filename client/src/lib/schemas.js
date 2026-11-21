@@ -7,8 +7,8 @@ export const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 export const questionFormSchema = z
   .object({
     subject: z.string().min(1, 'Choose a subject'),
-    type: z.enum(['single', 'fill_blank']),
-    text: z.string().trim().min(3, 'Write the question (at least 3 characters)').max(2000),
+    type: z.enum(['single', 'fill_blank', 'code']),
+    text: z.string().trim().min(3, 'Write the question (at least 3 characters)').max(10000),
     options: z.array(z.object({ text: z.string().trim().max(500) })).max(8),
     correctIndex: z.coerce.number().int().min(-1),
     answer: z.string().trim().max(200),
@@ -20,9 +20,38 @@ export const questionFormSchema = z
     difficulty: z.enum(['easy', 'medium', 'hard']),
     topic: z.string().trim().max(80),
     explanation: z.string().trim().max(2000),
+    code: z
+      .object({
+        languages: z.array(z.string()),
+        starter: z.record(z.string()),
+        timeLimitMs: z.coerce.number({ invalid_type_error: 'Enter a time limit' }).int().min(500, 'At least 500 ms').max(10000, 'At most 10 s'),
+        memoryLimitMb: z.coerce.number({ invalid_type_error: 'Enter a memory limit' }).int().min(32, 'At least 32 MB').max(512, 'At most 512 MB'),
+        comparison: z.enum(['exact', 'trim', 'tokens']),
+        practice: z.boolean(),
+        testCases: z
+          .array(
+            z.object({
+              input: z.string().max(65536, 'Too long'),
+              expectedOutput: z.string().max(65536, 'Too long'),
+              weight: z.coerce.number({ invalid_type_error: 'Weight' }).positive('Must be > 0').max(100),
+              hidden: z.boolean(),
+            }),
+          )
+          .max(30, 'At most 30 test cases'),
+      })
+      .optional(),
   })
   .superRefine((v, ctx) => {
-    if (v.type === 'single') {
+    if (v.type !== 'code' && v.text.length > 2000) ctx.addIssue({ code: 'custom', path: ['text'], message: 'At most 2000 characters' });
+    if (v.type === 'code') {
+      const c = v.code;
+      if (!c?.languages?.length) ctx.addIssue({ code: 'custom', path: ['code', 'languages'], message: 'Allow at least one language' });
+      if (!c?.testCases?.length) ctx.addIssue({ code: 'custom', path: ['code', 'testCases'], message: 'Add at least one test case' });
+      else if (!c.testCases.some((t) => !t.hidden)) ctx.addIssue({ code: 'custom', path: ['code', 'testCases'], message: 'Keep at least one test visible as a sample' });
+      c?.testCases?.forEach((t, i) => {
+        if (t.expectedOutput === '') ctx.addIssue({ code: 'custom', path: ['code', 'testCases', i, 'expectedOutput'], message: 'Expected output is required' });
+      });
+    } else if (v.type === 'single') {
       if (v.options.length < 2) ctx.addIssue({ code: 'custom', path: ['options'], message: 'Add at least two options' });
       v.options.forEach((o, i) => {
         if (!o.text) ctx.addIssue({ code: 'custom', path: ['options', i, 'text'], message: 'Option text is required' });
@@ -38,6 +67,23 @@ export const questionFormSchema = z
 /** Converts editor values into the API payload. */
 export function toQuestionPayload(v) {
   const base = { subject: v.subject, type: v.type, text: v.text, marks: Number(v.marks), difficulty: v.difficulty, topic: v.topic || undefined, explanation: v.explanation || undefined };
+  if (v.type === 'code') {
+    const c = v.code;
+    const starter = Object.fromEntries(Object.entries(c.starter || {}).filter(([lang, src]) => c.languages.includes(lang) && src?.trim()));
+    return {
+      ...base,
+      options: [],
+      code: {
+        languages: c.languages,
+        starter,
+        timeLimitMs: Number(c.timeLimitMs),
+        memoryLimitMb: Number(c.memoryLimitMb),
+        comparison: c.comparison,
+        practice: Boolean(c.practice),
+        testCases: c.testCases.map((t) => ({ input: t.input, expectedOutput: t.expectedOutput, weight: Number(t.weight) || 1, hidden: Boolean(t.hidden) })),
+      },
+    };
+  }
   if (v.type === 'single') {
     const options = v.options.map((o, i) => ({ key: OPTION_KEYS[i], text: o.text }));
     return { ...base, options, correctAnswer: OPTION_KEYS[v.correctIndex] };
@@ -45,10 +91,36 @@ export function toQuestionPayload(v) {
   return { ...base, options: [], correctAnswer: v.answer };
 }
 
+export const defaultCode = () => ({
+  languages: ['c', 'cpp', 'java', 'python'],
+  starter: {},
+  timeLimitMs: 2000,
+  memoryLimitMb: 256,
+  comparison: 'trim',
+  practice: false,
+  testCases: [
+    { input: '', expectedOutput: '', weight: 1, hidden: false },
+    { input: '', expectedOutput: '', weight: 1, hidden: true },
+  ],
+});
+
+function codeValues(code) {
+  if (!code?.testCases?.length) return defaultCode();
+  return {
+    languages: code.languages?.length ? [...code.languages] : defaultCode().languages,
+    starter: { ...(code.starter || {}) },
+    timeLimitMs: code.timeLimitMs ?? 2000,
+    memoryLimitMb: code.memoryLimitMb ?? 256,
+    comparison: code.comparison || 'trim',
+    practice: Boolean(code.practice),
+    testCases: code.testCases.map((t) => ({ input: t.input ?? '', expectedOutput: t.expectedOutput ?? '', weight: t.weight ?? 1, hidden: Boolean(t.hidden) })),
+  };
+}
+
 /** Converts a stored question into editor values. */
 export function fromQuestion(q, fallbackSubject = '') {
   if (!q)
-    return { subject: fallbackSubject, type: 'single', text: '', options: [{ text: '' }, { text: '' }, { text: '' }, { text: '' }], correctIndex: -1, answer: '', marks: 1, difficulty: 'medium', topic: '', explanation: '' };
+    return { subject: fallbackSubject, type: 'single', text: '', options: [{ text: '' }, { text: '' }, { text: '' }, { text: '' }], correctIndex: -1, answer: '', marks: 1, difficulty: 'medium', topic: '', explanation: '', code: defaultCode() };
   const options = q.type === 'single' ? q.options.map((o) => ({ text: o.text })) : [{ text: '' }, { text: '' }];
   return {
     subject: String(q.subject?._id || q.subject),
@@ -61,6 +133,7 @@ export function fromQuestion(q, fallbackSubject = '') {
     difficulty: q.difficulty || 'medium',
     topic: q.topic || '',
     explanation: q.explanation || '',
+    code: codeValues(q.code),
   };
 }
 
@@ -94,7 +167,8 @@ export const quizFormSchema = z
     endsAt: z.string(),
     durationMinutes: z.coerce.number({ invalid_type_error: 'Enter a duration' }).int('Whole minutes only').min(1, 'At least 1 minute').max(600, 'At most 600 minutes'),
     attemptsAllowed: z.coerce.number().int().min(1).max(10),
-    cieSlot: z.enum(['', 'QUIZ1', 'QUIZ2']).default(''),
+    category: z.enum(['Quiz', 'Lab']).default('Quiz'),
+    cieSlot: z.enum(['', 'QUIZ1', 'QUIZ2', 'LAB_TEST']).default(''),
     randomizeQuestions: z.boolean(),
     randomizeOptions: z.boolean(),
     proctoring: z.object({
@@ -110,6 +184,7 @@ export const quizFormSchema = z
   .superRefine((v, ctx) => {
     const start = v.startsAt ? new Date(v.startsAt) : null;
     const end = v.endsAt ? new Date(v.endsAt) : null;
+    if (v.cieSlot && (v.cieSlot === 'LAB_TEST') !== (v.category === 'Lab')) ctx.addIssue({ code: 'custom', path: ['cieSlot'], message: v.category === 'Lab' ? 'A lab can only count as the lab test' : 'Only a lab can count as the lab test' });
     if (v.availabilityMode === 'scheduled' && !start) ctx.addIssue({ code: 'custom', path: ['startsAt'], message: 'Scheduled quizzes need an opening time' });
     if (start && end && end <= start) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'Must be after the opening time' });
     if (end && end <= new Date()) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'Closing time is in the past' });

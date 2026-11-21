@@ -1,12 +1,40 @@
-import { useMemo, useState } from 'react';
-import { Check, CircleSlash, Lightbulb, X } from 'lucide-react';
-import { EmptyState, Tabs } from '../ui/index.js';
+import { lazy, Suspense, useMemo, useState } from 'react';
+import { Check, CircleSlash, Hourglass, Lightbulb, SplitSquareHorizontal, X } from 'lucide-react';
+import { EmptyState, Spinner, Tabs } from '../ui/index.js';
+import { TestResults } from './CodeWorkspace.jsx';
+import { LANGUAGES } from '../../lib/code.js';
+
+const CodeEditor = lazy(() => import('./CodeEditor.jsx'));
 
 const STATUS = {
   correct: { label: 'Correct', chip: 'bg-success-soft text-success', icon: Check },
   incorrect: { label: 'Incorrect', chip: 'bg-danger-soft text-danger', icon: X },
   skipped: { label: 'Skipped', chip: 'bg-surface-2 text-muted', icon: CircleSlash },
+  partial: { label: 'Partly correct', chip: 'bg-warn-soft text-warn', icon: SplitSquareHorizontal },
+  pending: { label: 'Being graded', chip: 'bg-info-soft text-info', icon: Hourglass },
 };
+
+function CodeAnswer({ item, perspective }) {
+  const given = item.given;
+  const run = item.code?.runStatus ? { status: item.code.runStatus, results: item.code.results, passedWeight: item.code.passedWeight, totalWeight: item.code.totalWeight } : null;
+  return (
+    <div className="mt-4 space-y-4">
+      {given ? (
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+            {perspective === 'student' ? 'Your code' : 'Submitted code'} · {LANGUAGES[given.language]?.label || given.language}
+          </p>
+          <Suspense fallback={<Spinner />}>
+            <CodeEditor value={given.source} language={given.language} readOnly minHeight="8rem" height="auto" />
+          </Suspense>
+        </div>
+      ) : (
+        <p className="text-sm text-muted">No code was submitted.</p>
+      )}
+      {given && (run?.status === 'done' || run?.status === 'error' ? <TestResults run={run} samples={item.code.samples} /> : <p className="text-sm text-muted">The code is still being judged.</p>)}
+    </div>
+  );
+}
 
 /** Per-question counts for a review list. */
 export const tally = (items = []) => items.reduce((n, i) => ({ ...n, [i.status]: (n[i.status] || 0) + 1 }), { correct: 0, incorrect: 0, skipped: 0 });
@@ -41,7 +69,9 @@ function ReviewItem({ item, index, perspective }) {
         </span>
       </div>
       <h3 className="whitespace-pre-wrap font-display text-base font-semibold leading-relaxed text-fg">{item.text}</h3>
-      {item.type === 'single' ? (
+      {item.type === 'code' ? (
+        <CodeAnswer item={item} perspective={perspective} />
+      ) : item.type === 'single' ? (
         <ul className="mt-4 space-y-2">
           {item.options.map((o, i) => (
             <Option key={o.key} o={o} letter={String.fromCharCode(65 + i)} isCorrect={o.key === item.correctAnswer} isGiven={o.key === item.given} perspective={perspective} />
@@ -83,7 +113,9 @@ export function AnswerReview({ items, perspective = 'student' }) {
         items={[
           { value: 'all', label: 'All', count: items.length },
           { value: 'correct', label: 'Correct', count: counts.correct },
+          ...(counts.partial ? [{ value: 'partial', label: 'Partly correct', count: counts.partial }] : []),
           { value: 'incorrect', label: 'Incorrect', count: counts.incorrect },
+          ...(counts.pending ? [{ value: 'pending', label: 'Being graded', count: counts.pending }] : []),
           { value: 'skipped', label: 'Skipped', count: counts.skipped },
         ]}
       />

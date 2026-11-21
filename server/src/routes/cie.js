@@ -24,7 +24,10 @@ const hasLabFor = (subject) => Boolean(subject.syllabus?.cieLab?.length);
 /** One row per enrolled student: quiz marks from grades plus teacher-entered components. */
 async function buildSheet(subject, studentFilter = null) {
   const hasLab = hasLabFor(subject);
-  const quizzes = await Assessment.find({ subject: subject._id, cieSlot: { $in: ['QUIZ1', 'QUIZ2'] } })
+  const quizzes = await Assessment.find({
+    subject: subject._id,
+    cieSlot: { $in: ['QUIZ1', 'QUIZ2', 'LAB_TEST'] },
+  })
     .select('title state cieSlot')
     .lean();
   const slotOf = new Map(quizzes.map((q) => [String(q._id), q.cieSlot]));
@@ -46,15 +49,23 @@ async function buildSheet(subject, studentFilter = null) {
     const quiz = (slot) => mine.find((g) => slotOf.get(String(g.assessment)) === slot);
     const q1 = quiz('QUIZ1');
     const q2 = quiz('QUIZ2');
+    const lab = hasLab ? quiz('LAB_TEST') : undefined;
     const marks = {
       quiz1: q1?.rawMarks,
       quiz2: q2?.rawMarks,
       ...Object.fromEntries(Object.keys(CIE_FIELDS).map((k) => [k, rec[k]])),
     };
+    // A hand-entered lab test mark overrides the online lab's grade.
+    if (lab && typeof rec.labTest !== 'number') marks.labTest = lab.rawMarks;
     return {
       student: s,
       marks,
-      quizPublished: { quiz1: Boolean(q1?.publishedAt), quiz2: Boolean(q2?.publishedAt) },
+      quizPublished: {
+        quiz1: Boolean(q1?.publishedAt),
+        quiz2: Boolean(q2?.publishedAt),
+        ...(lab ? { labTest: Boolean(lab.publishedAt) } : {}),
+      },
+      labTestFromGrade: Boolean(lab && typeof rec.labTest !== 'number' && typeof lab.rawMarks === 'number'),
       result: computeCie(marks, { hasLab }),
       updatedAt: rec.updatedAt,
     };

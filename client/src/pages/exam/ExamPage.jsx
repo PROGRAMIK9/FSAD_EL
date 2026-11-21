@@ -31,8 +31,14 @@ import { FOCUS_EVENTS, enterFullscreen, exitFullscreen, useProctoring } from '..
 import { Alert, Button, Checkbox, MetaPill, Modal, SectionTitle, Spinner, TimerRing } from '../../components/ui/index.js';
 import { DuplicateTabOverlay, FinishedScreen, MessageOverlay, PausedOverlay, ViolationOverlay } from './ExamOverlays.jsx';
 import { clearBackup, useAnswers } from './useAnswers.js';
+import { CodeWorkspace } from '../../components/domain/CodeWorkspace.jsx';
 
-const isAnswered = (a) => a && a.value !== undefined && a.value !== null && String(a.value).trim() !== '';
+const isAnswered = (a) => {
+  const v = a?.value;
+  if (v === undefined || v === null) return false;
+  if (typeof v === 'object' && !Array.isArray(v)) return Boolean(String(v.source ?? '').trim());
+  return String(v).trim() !== '';
+};
 
 function Gate({ info, resuming, busy, onBegin, onBack }) {
   const [agreed, setAgreed] = useState(false);
@@ -185,7 +191,7 @@ function Palette({ questions, answers, current, onJump }) {
   );
 }
 
-function QuestionView({ q, index, total, answer, onAnswer, disabled, noSelect }) {
+function QuestionView({ q, index, total, answer, onAnswer, disabled, noSelect, attemptId }) {
   return (
     <div className="animate-fade-in">
       <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -193,13 +199,22 @@ function QuestionView({ q, index, total, answer, onAnswer, disabled, noSelect })
           {index + 1}
           <span className="opacity-60">/ {total}</span>
         </span>
-        <span className="chip">{q.type === 'single' ? 'Choose one' : 'Type your answer'}</span>
+        <span className="chip">{q.type === 'single' ? 'Choose one' : q.type === 'code' ? 'Write a program' : 'Type your answer'}</span>
         <span className="chip bg-surface-2 text-muted">
           {q.marks} mark{q.marks === 1 ? '' : 's'}
         </span>
       </div>
-      <h2 className={`whitespace-pre-wrap font-display text-xl font-semibold leading-relaxed text-fg sm:text-[1.4rem] ${noSelect ? 'no-select' : ''}`}>{q.text}</h2>
-      {q.type === 'single' ? (
+      {q.type === 'code' ? (
+        <p className={`whitespace-pre-wrap text-[15px] leading-relaxed text-fg ${noSelect ? 'no-select' : ''}`}>{q.text}</p>
+      ) : (
+        <h2 className={`whitespace-pre-wrap font-display text-xl font-semibold leading-relaxed text-fg sm:text-[1.4rem] ${noSelect ? 'no-select' : ''}`}>{q.text}</h2>
+      )}
+      {q.type === 'code' ? (
+        <div className="mt-6">
+          <CodeWorkspace question={q} value={answer?.value && typeof answer.value === 'object' ? answer.value : null} attemptId={attemptId} disabled={disabled} onChange={(v) => onAnswer({ value: v }, { debounce: 2000 })} />
+          <p className="mt-2 text-xs text-subtle">Your code saves automatically. When the quiz is submitted, the last saved code is judged against every test.</p>
+        </div>
+      ) : q.type === 'single' ? (
         <fieldset className="mt-7 space-y-3" disabled={disabled}>
           <legend className="sr-only">Options</legend>
           {q.options.map((o, i) => {
@@ -534,7 +549,7 @@ export default function ExamPage() {
             )}
           </div>
           <div className="card rounded-3xl p-6 sm:p-8">
-            {q && <QuestionView key={q._id} q={q} index={current} total={questions.length} answer={answers[q._id]} disabled={locked} noSelect={policy.enabled && policy.blockClipboard} onAnswer={(patch, opts) => update(q._id, patch, opts)} />}
+            {q && <QuestionView key={q._id} q={q} index={current} total={questions.length} answer={answers[q._id]} disabled={locked} attemptId={exam.attempt.id} noSelect={policy.enabled && policy.blockClipboard} onAnswer={(patch, opts) => update(q._id, patch, opts)} />}
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <Button icon={ArrowLeft} disabled={current === 0} onClick={() => setCurrent((c) => c - 1)}>

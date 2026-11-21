@@ -29,7 +29,9 @@ export function requestKey(req) {
 
 export const SESSION_LIMIT = 1500;
 export const ANONYMOUS_LIMIT = 600;
-export const SIGN_IN_LIMIT = 200;
+// Per IP. A whole class signs in from one college NAT address at the start of a lab,
+// so this must stay well above the class size (250+).
+export const SIGN_IN_LIMIT = Number(process.env.SIGN_IN_LIMIT) || 1000;
 
 export const apiLimiter = rateLimit({
   windowMs: WINDOW_MS,
