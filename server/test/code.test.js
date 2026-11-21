@@ -245,4 +245,14 @@ test('the Judge0 client batches, base64-encodes and authenticates', async (t) =>
   assert.equal(states[0].timeMs, 12);
   assert.equal(states[1].status, 'CE');
   assert.equal(states[1].compileOutput, 'error');
+
+  // Batches larger than Judge0's limit are split.
+  process.env.JUDGE0_BATCH_SIZE = '1';
+  seen.length = 0;
+  await submitBatch([
+    { language: 'python', source: 'a', stdin: '', limits },
+    { language: 'python', source: 'b', stdin: '', limits },
+  ]);
+  const posts = seen.filter((s) => s.method === 'POST').map((s) => JSON.parse(s.body).submissions.length);
+  assert.deepEqual(posts, [1, 1]);
 });

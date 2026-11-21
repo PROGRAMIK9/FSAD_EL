@@ -43,6 +43,22 @@ The repository contains a blueprint, [`render.yaml`](../render.yaml), for one No
 
 **Free plan.** The service sleeps after inactivity; the first request then takes up to about a minute. Use a paid instance during quizzes.
 
+## Code execution (Judge0)
+
+Coding questions are compiled and run by a self-hosted [Judge0 CE](https://judge0.com) on a **separate VM**. Render cannot run it, because it needs privileged containers and cgroup v1. Setup, sizing for 250 concurrent students and sandbox checks are in [`judge0/README.md`](../judge0/README.md). Then set these on the app:
+
+| Variable | Value |
+|---|---|
+| `JUDGE0_URL` | e.g. `http://<vm-ip>:2358` (firewall it to the app's outbound IPs) |
+| `JUDGE0_AUTH_TOKEN` | Judge0's `AUTHN_TOKEN` |
+| `JUDGE_MAX_INFLIGHT` | executions handed to Judge0 at once (default 40; about 5 × the number of Judge0 workers) |
+
+Runs wait in MongoDB (`coderuns` collection) and are handed to Judge0 by a dispatcher inside the app process, so a burst at the end of an exam queues instead of overloading the judge. If the app restarts, runs it was handling are put back in the queue after 3 minutes. In production without `JUDGE0_URL`, Run/Submit answer 503 and the rest of the app works normally.
+
+**Load test.** [`loadtest/code-lab.k6.js`](../loadtest/code-lab.k6.js) simulates 250 students writing a coding lab: autosave every 3 s, Run about every 45 s, then Submit code and the final submit. Run it against a staging copy (it uses dev sign-in, so set `DEV_LOGIN=true` and a `NODE_ENV` other than `production`). Create the accounts and the lab with `LOADTEST=true node server/src/scripts/loadtest-fixtures.js 250` first.
+
+**Plan size.** 250 students holding Socket.IO connections need at least Render's *Starter* instance (512 MB, no sleeping). The free plan sleeps and is not suitable for a lab.
+
 ## Docker (own server)
 
 A single multi-stage [`Dockerfile`](../Dockerfile) builds the client and runs the API, which serves the client:
@@ -65,5 +81,6 @@ The app listens on port 4000; uploads persist in the `uploads` volume and MongoD
 - **Administrator:** the seed creates `maaryamannp.mca25@rvce.edu.in` as administrator. Students are created on their first Google sign-in; administrators promote teachers from *Students* → edit → role.
 - **Security:**
   - Sessions are HTTP-only, `Secure` in production, and renewed after half their lifetime.
-  - Signed-in traffic is rate-limited per session, so a class behind one college IP is not throttled together. Sign-in attempts are limited per IP.
+  - Signed-in traffic is rate-limited per session, so a class behind one college IP is not throttled together. Sign-in attempts are limited per IP, to 1000 per 15 minutes (`SIGN_IN_LIMIT`), which is enough for a whole class signing in at once.
+  - Student code never runs on the app server: it runs in Judge0's sandbox on its own VM, with no network.
   - The Content-Security-Policy allows only this origin, Google Identity and Google Fonts.

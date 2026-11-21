@@ -114,11 +114,21 @@ export function limitsFor(language, { timeLimitMs = 2000, memoryLimitMb = 256 } 
   };
 }
 
+/** Judge0 refuses batches larger than its MAX_SUBMISSION_BATCH_SIZE (20 by default). */
+const batchSize = () => Number(process.env.JUDGE0_BATCH_SIZE) || 20;
+const chunks = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
 /**
  * Queues executions on Judge0. Each item is `{ language, source, stdin, limits }`.
  * Returns one token per item.
  */
 export async function submitBatch(items) {
+  const tokens = [];
+  for (const part of chunks(items, batchSize())) tokens.push(...(await submitChunk(part)));
+  return tokens;
+}
+
+async function submitChunk(items) {
   const body = {
     submissions: items.map((it) => ({
       language_id: languageIds[it.language],
@@ -141,10 +151,12 @@ const FIELDS = 'token,stdout,stderr,compile_output,message,status_id,time,memory
 
 /** Fetches the current state of submitted tokens, decoded. */
 export async function getBatch(tokens) {
-  const out = await call(
-    `/submissions/batch?tokens=${tokens.join(',')}&base64_encoded=true&fields=${FIELDS}`,
+  const parts = await Promise.all(
+    chunks(tokens, batchSize()).map((part) =>
+      call(`/submissions/batch?tokens=${part.join(',')}&base64_encoded=true&fields=${FIELDS}`),
+    ),
   );
-  return out.submissions.map((s) => ({
+  return parts.flatMap((out) => out.submissions).map((s) => ({
     token: s.token,
     status: mapStatus(s.status_id, unb64(s.message)),
     stdout: unb64(s.stdout),

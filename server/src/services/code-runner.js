@@ -83,7 +83,8 @@ export function scoreResults(items, outputs, question) {
 async function execute(items) {
   if (!items.length) return [];
   if (judgeMode() === 'fake') {
-    await sleep(30);
+    // JUDGE_FAKE_DELAY_MS imitates Judge0's compile + run time in load tests.
+    await sleep(Number(process.env.JUDGE_FAKE_DELAY_MS) || 30);
     return fakeExecute(items);
   }
   const tokens = await submitBatch(items);
