@@ -5,13 +5,36 @@ import { Assessment, Question, Subject } from '../models/index.js';
 import { audit } from '../utils/audit.js';
 import { teachesSubject, teachingSubjectIds } from '../services/access.js';
 import { httpError, oid, send, wrap } from '../utils/http.js';
+import { LANGUAGE_KEYS } from '../services/judge0.js';
 
 const router = Router();
 
+export const MAX_TEST_CASES = 30;
+const IO_LIMIT = 64 * 1024;
+const codeFields = z.object({
+  languages: z.array(z.enum(LANGUAGE_KEYS)).min(1, 'Allow at least one language'),
+  starter: z.record(z.enum(LANGUAGE_KEYS), z.string().max(16_000)).default({}),
+  timeLimitMs: z.coerce.number().int().min(500).max(10_000).default(2000),
+  memoryLimitMb: z.coerce.number().int().min(32).max(512).default(256),
+  comparison: z.enum(['exact', 'trim', 'tokens']).default('trim'),
+  practice: z.boolean().default(false),
+  testCases: z
+    .array(
+      z.object({
+        input: z.string().max(IO_LIMIT, 'Test input is too long').default(''),
+        expectedOutput: z.string().max(IO_LIMIT, 'Expected output is too long'),
+        weight: z.coerce.number().positive().max(100).default(1),
+        hidden: z.boolean().default(false),
+      }),
+    )
+    .min(1, 'Add at least one test case')
+    .max(MAX_TEST_CASES, `At most ${MAX_TEST_CASES} test cases`),
+});
+
 const questionFields = {
   subject: z.string().refine(oid, 'Invalid subject'),
-  text: z.string().trim().min(3).max(2000),
-  type: z.enum(['single', 'fill_blank']),
+  text: z.string().trim().min(3).max(10_000),
+  type: z.enum(['single', 'fill_blank', 'code']),
   topic: z.string().trim().max(80).optional(),
   difficulty: z.enum(['easy', 'medium', 'hard']).default('medium'),
   marks: z.coerce
@@ -25,10 +48,21 @@ const questionFields = {
     .optional(),
   correctAnswer: z.unknown().optional(),
   explanation: z.string().trim().max(2000).optional(),
+  code: codeFields.optional(),
 };
 
 /** Type-specific rules shared by create and update. */
 function checkQuestion(q) {
+  if (q.type !== 'code' && q.text?.length > 2000) throw httpError(400, 'Question text is too long');
+  if (q.type === 'code') {
+    if (!q.code) throw httpError(400, 'Add the coding details (languages and test cases)');
+    if (!q.code.testCases.some((t) => !t.hidden))
+      throw httpError(400, 'Keep at least one test case visible as a sample');
+    q.options = [];
+    q.correctAnswer = undefined;
+    return;
+  }
+  q.code = undefined;
   if (q.type === 'single') {
     const options = q.options || [];
     if (options.length < 2) throw httpError(400, 'MCQ needs at least two options');
@@ -93,7 +127,7 @@ router.get(
         throw httpError(403, 'Not allocated to subject');
       filter.subject = req.query.subject;
     } else if (mine) filter.subject = { $in: mine };
-    if (['single', 'fill_blank'].includes(req.query.type)) filter.type = req.query.type;
+    if (['single', 'fill_blank', 'code'].includes(req.query.type)) filter.type = req.query.type;
     if (['easy', 'medium', 'hard'].includes(req.query.difficulty)) filter.difficulty = req.query.difficulty;
     if (req.query.search) {
       const re = new RegExp(String(req.query.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -184,9 +218,16 @@ router.patch(
     if (await Assessment.exists({ questionIds: q._id, state: { $ne: 'DRAFT' } }))
       throw httpError(409, 'This question is used in a published quiz. Duplicate it to make changes.');
     const b = z.object(questionFields).omit({ subject: true }).partial().parse(req.body);
-    const next = { type: q.type, options: q.options, correctAnswer: q.correctAnswer, ...b };
+    const next = {
+      type: q.type,
+      text: q.text,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      code: q.code?.testCases?.length ? q.code.toObject() : undefined,
+      ...b,
+    };
     checkQuestion(next);
-    q.set({ ...b, options: next.options, correctAnswer: next.correctAnswer });
+    q.set({ ...b, options: next.options, correctAnswer: next.correctAnswer, code: next.code });
     q.depopulate('subject');
     await q.save();
     await audit(req, 'QUESTION_UPDATED', 'Question', q._id);

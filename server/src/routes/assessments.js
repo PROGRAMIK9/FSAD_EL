@@ -31,7 +31,7 @@ const assessmentFields = {
   subject: z.string().refine(oid, 'Invalid subject'),
   title: z.string().trim().min(3).max(160),
   description: z.string().max(4000).optional(),
-  category: z.literal('Quiz').default('Quiz'),
+  category: z.enum(['Quiz', 'Lab']).default('Quiz'),
   questionIds: z.array(z.string().refine(oid)).min(1, 'Select at least one question').max(100),
   maxMarks: z.coerce
     .number()
@@ -45,25 +45,30 @@ const assessmentFields = {
   randomizeQuestions: z.boolean().default(false),
   randomizeOptions: z.boolean().default(false),
   proctoring: proctoringSchema.default({}),
-  cieSlot: z.enum(['QUIZ1', 'QUIZ2']).nullable().optional(),
+  cieSlot: z.enum(['QUIZ1', 'QUIZ2', 'LAB_TEST']).nullable().optional(),
 };
 const createSchema = z.object({ ...assessmentFields, publish: z.boolean().default(false) });
 const updateSchema = z.object(assessmentFields).partial();
 
-/** A subject can have one Quiz 1 and one Quiz 2 that count towards CIE. */
-async function checkCieSlot(subjectId, slot, exceptId) {
+const SLOT_NAMES = { QUIZ1: 'Quiz 1', QUIZ2: 'Quiz 2', LAB_TEST: 'the lab test' };
+
+/** A subject can have one Quiz 1, one Quiz 2 and one lab test that count towards CIE. */
+async function checkCieSlot(subjectId, slot, exceptId, category = 'Quiz') {
   if (!slot) return;
+  if ((slot === 'LAB_TEST') !== (category === 'Lab'))
+    throw httpError(
+      400,
+      category === 'Lab'
+        ? 'A lab can only count as the CIE lab test'
+        : 'Only a lab can count as the CIE lab test',
+    );
   const clash = await Assessment.findOne({
     subject: subjectId,
     cieSlot: slot,
     state: { $ne: 'CANCELLED' },
     ...(exceptId ? { _id: { $ne: exceptId } } : {}),
   }).select('title');
-  if (clash)
-    throw httpError(
-      409,
-      `"${clash.title}" already counts as ${slot === 'QUIZ1' ? 'Quiz 1' : 'Quiz 2'} for this subject`,
-    );
+  if (clash) throw httpError(409, `"${clash.title}" already counts as ${SLOT_NAMES[slot]} for this subject`);
 }
 
 /** Ensures the window and duration are coherent. */
@@ -77,15 +82,21 @@ function checkTiming({ startsAt, endsAt, durationMinutes, availabilityMode }, { 
   if (publishing && endsAt && endsAt <= new Date()) throw httpError(400, 'Closing time is in the past');
 }
 
-/** Validates the selected questions: same subject, active, supported types, exactly 10 marks. */
-async function checkPaper(subjectId, questionIds, maxMarks = QUIZ_MARKS) {
+/**
+ * Validates the selected questions: same subject, active, supported types, exactly 10 marks.
+ * Quizzes take MCQ and fill-in questions; labs also take coding questions.
+ */
+async function checkPaper(subjectId, questionIds, maxMarks = QUIZ_MARKS, category = 'Quiz') {
   const unique = [...new Set(questionIds.map(String))];
   if (unique.length !== questionIds.length) throw httpError(400, 'A question was selected twice');
   const qs = await Question.find({ _id: { $in: unique }, subject: subjectId, archivedAt: null });
   if (qs.length !== unique.length)
     throw httpError(400, 'Questions must be active and from the selected subject');
-  if (qs.some((q) => !['single', 'fill_blank'].includes(q.type)))
-    throw httpError(400, 'Quizzes support MCQ and single-line fill-in questions only');
+  if (category !== 'Lab' && qs.some((q) => !['single', 'fill_blank'].includes(q.type)))
+    throw httpError(
+      400,
+      'Quizzes support MCQ and single-line fill-in questions only. Use a Lab for coding questions.',
+    );
   const total = Math.round(qs.reduce((n, q) => n + q.marks, 0) * 100) / 100;
   if (total !== maxMarks) throw httpError(400, `Question marks total ${total}, not ${maxMarks}`);
   return qs;
@@ -222,8 +233,8 @@ router.post(
     const subject = await Subject.findById(b.subject);
     if (!subject) throw httpError(404, 'Subject not found');
     if (!teachesSubject(subject, req.user)) throw httpError(403, 'Not allocated to subject');
-    await checkPaper(subject._id, b.questionIds, b.maxMarks);
-    await checkCieSlot(subject._id, b.cieSlot);
+    await checkPaper(subject._id, b.questionIds, b.maxMarks, b.category);
+    await checkCieSlot(subject._id, b.cieSlot, undefined, b.category);
     let a = await Assessment.create({ ...b, creator: req.user._id, state: 'DRAFT' });
     await audit(req, 'ASSESSMENT_CREATED', 'Assessment', a._id);
     if (publishNow) {
@@ -252,8 +263,8 @@ router.patch(
     for (const key of ['startsAt', 'endsAt']) if (key in req.body && !req.body[key]) a[key] = undefined;
     a.set(b);
     checkTiming(a, { publishing: false });
-    await checkPaper(a.subject._id, a.questionIds.map(String), a.maxMarks);
-    await checkCieSlot(a.subject._id, a.cieSlot, a._id);
+    await checkPaper(a.subject._id, a.questionIds.map(String), a.maxMarks, a.category);
+    await checkCieSlot(a.subject._id, a.cieSlot, a._id, a.category);
     await a.save();
     await audit(req, 'ASSESSMENT_UPDATED', 'Assessment', a._id);
     send(res, a);

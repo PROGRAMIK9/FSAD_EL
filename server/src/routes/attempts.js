@@ -5,6 +5,7 @@ import { authenticate, allow } from '../middleware/auth.js';
 import {
   Assessment,
   Attempt,
+  CodeRun,
   Grade,
   GradeReviewRequest,
   Question,
@@ -13,6 +14,8 @@ import {
   User,
 } from '../models/index.js';
 import { reviewAnswers } from '../services/grading.js';
+import { studentCodeView } from './code.js';
+import { LANGUAGE_KEYS } from '../services/judge0.js';
 import { audit } from '../utils/audit.js';
 import { finalizeAttempt } from '../services/attempts.js';
 import { EVENT_TYPES, policyOf, recordViolation } from '../services/proctoring.js';
@@ -22,7 +25,14 @@ import { httpError, oid, send, wrap } from '../utils/http.js';
 import { EXPORT_FORMATS, sendTable } from '../utils/export.js';
 
 const router = Router();
-const STUDENT_QUESTION_FIELDS = 'text type options marks topic';
+const STUDENT_QUESTION_FIELDS = 'text type options marks topic code';
+export const MAX_SOURCE = 64 * 1024;
+
+const finalRuns = (filter) =>
+  CodeRun.find({ ...filter, kind: 'final' })
+    .sort({ createdAt: 1 })
+    .select('-source')
+    .lean();
 
 const secureShuffle = (values) => {
   const arr = [...values];
@@ -44,6 +54,8 @@ async function paperFor(attempt) {
     .map((id) => byId.get(String(id)))
     .filter(Boolean)
     .map((q) => {
+      if (q.type === 'code') return { ...q, code: studentCodeView(q.code) };
+      delete q.code;
       const keys = orders.get(String(q._id));
       if (!keys?.length) return q;
       const byKey = new Map(q.options.map((o) => [o.key, o]));
@@ -51,8 +63,13 @@ async function paperFor(attempt) {
     });
 }
 
-const answeredCount = (answers) =>
-  answers.filter((a) => a.value !== undefined && a.value !== null && String(a.value).trim() !== '').length;
+const isAnswered = (v) =>
+  v !== undefined &&
+  v !== null &&
+  (typeof v === 'object' && !Array.isArray(v)
+    ? Boolean(String(v.source ?? '').trim())
+    : String(v).trim() !== '');
+const answeredCount = (answers) => answers.filter((a) => isAnswered(a.value)).length;
 
 /**
  * Everything the exam screen needs: the paper, saved answers, timing (with the
@@ -88,6 +105,7 @@ async function examPayload(attempt, assessment) {
       submittedAt: attempt.submittedAt,
       submitReason: attempt.submitReason,
       violationCount: attempt.violationCount || 0,
+      gradingStatus: attempt.gradingStatus,
       answers: attempt.answers.map((a) => ({
         question: a.question,
         value: a.value,
@@ -240,7 +258,7 @@ router.get(
       attempt: at,
       student: at.student,
       questions,
-      items: reviewAnswers(questions, at.answers),
+      items: reviewAnswers(questions, at.answers, await finalRuns({ attempt: at._id }), { showHidden: true }),
       policy: policyOf(at.assessment),
     });
   }),
@@ -305,7 +323,11 @@ router.get(
         response: review.response,
         createdAt: review.createdAt,
       },
-      items: reviewAnswers(at.questionOrder.map((id) => byId.get(String(id))).filter(Boolean), at.answers),
+      items: reviewAnswers(
+        at.questionOrder.map((id) => byId.get(String(id))).filter(Boolean),
+        at.answers,
+        await finalRuns({ attempt: at._id }),
+      ),
     });
   }),
 );
@@ -325,7 +347,20 @@ router.patch(
     if (new Date() >= at.deadlineAt) throw httpError(409, 'Attempt deadline passed');
     if (!at.questionOrder.some((q) => q.equals(b.question)))
       throw httpError(400, 'Question is not in this paper');
-    if (typeof b.value === 'string' && b.value.length > 500) throw httpError(400, 'Answer is too long');
+    const question = await Question.findById(b.question).select('type code.languages').lean();
+    if (question?.type === 'code') {
+      if (b.value !== undefined && b.value !== null) {
+        const v = z
+          .object({ language: z.enum(LANGUAGE_KEYS), source: z.string().max(MAX_SOURCE, 'Code is too long') })
+          .parse(b.value);
+        if (question.code?.languages?.length && !question.code.languages.includes(v.language))
+          throw httpError(400, 'Language is not allowed for this question');
+        b.value = v;
+      }
+    } else if (typeof b.value === 'string' && b.value.length > 500)
+      throw httpError(400, 'Answer is too long');
+    else if (b.value !== null && typeof b.value === 'object' && !Array.isArray(b.value))
+      throw httpError(400, 'Invalid answer');
     const now = new Date();
     const old = at.answers.find((x) => x.question.equals(b.question));
     if (old) {
@@ -470,6 +505,13 @@ router.get(
         .lean(),
       Attempt.find({ assessment: a._id }).select('-optionOrders').sort({ attemptNumber: -1 }).lean(),
     ]);
+    const runs = await finalRuns({ assessment: a._id });
+    const runsOf = new Map();
+    for (const r of runs) {
+      const key = String(r.attempt);
+      if (!runsOf.has(key)) runsOf.set(key, []);
+      runsOf.get(key).push(r);
+    }
     const latest = new Map();
     for (const at of attempts) if (!latest.has(String(at.student))) latest.set(String(at.student), at);
     const roster = students.map((s) => {
@@ -566,7 +608,7 @@ router.get(
     for (const s of students) {
       const at = latest.get(String(s._id));
       const grade = gradeOf.get(String(s._id));
-      const items = at ? reviewAnswers(paper, at.answers || []) : [];
+      const items = at ? reviewAnswers(paper, at.answers || [], runsOf.get(String(at._id)) || []) : [];
       const count = (st) => items.filter((i) => i.status === st).length;
       const done = at && at.state !== 'IN_PROGRESS';
       const score = grade?.rawMarks ?? (done ? at.score : null);

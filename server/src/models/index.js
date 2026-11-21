@@ -58,7 +58,7 @@ const questionSchema = new Schema(
     subject: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
     creator: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true },
-    type: { type: String, enum: ['single', 'fill_blank'], required: true },
+    type: { type: String, enum: ['single', 'fill_blank', 'code'], required: true },
     topic: String,
     difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
     marks: { type: Number, min: 0, required: true },
@@ -66,6 +66,24 @@ const questionSchema = new Schema(
     correctAnswer: Schema.Types.Mixed,
     explanation: String,
     archivedAt: Date,
+    /** Programming question: run against test cases by the Judge0 sandbox. */
+    code: {
+      languages: [{ type: String, enum: ['c', 'cpp', 'java', 'python'] }],
+      starter: { type: Map, of: String },
+      timeLimitMs: { type: Number, default: 2000 },
+      memoryLimitMb: { type: Number, default: 256 },
+      comparison: { type: String, enum: ['exact', 'trim', 'tokens'], default: 'trim' },
+      testCases: [
+        {
+          input: { type: String, default: '' },
+          expectedOutput: { type: String, default: '' },
+          weight: { type: Number, default: 1 },
+          hidden: { type: Boolean, default: false },
+        },
+      ],
+      /** Listed in the practice area for enrolled students. */
+      practice: { type: Boolean, default: false },
+    },
   },
   opts,
 );
@@ -75,7 +93,7 @@ const assessmentSchema = new Schema(
     creator: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true },
     description: String,
-    category: { type: String, enum: ['Quiz'], default: 'Quiz' },
+    category: { type: String, enum: ['Quiz', 'Lab'], default: 'Quiz' },
     state: {
       type: String,
       enum: [
@@ -105,7 +123,7 @@ const assessmentSchema = new Schema(
     pausedAt: Date,
     allowLateJoin: Boolean,
     /** Which CIE quiz this assessment counts as (null: practice). */
-    cieSlot: { type: String, enum: ['QUIZ1', 'QUIZ2', null], default: null },
+    cieSlot: { type: String, enum: ['QUIZ1', 'QUIZ2', 'LAB_TEST', null], default: null },
     proctoring: {
       enabled: { type: Boolean, default: true },
       requireFullscreen: { type: Boolean, default: true },
@@ -146,6 +164,9 @@ attemptSchema.add({
     enum: ['MANUAL', 'TIMEOUT', 'ASSESSMENT_ENDED', 'PROCTORING_LIMIT', 'TEACHER'],
   },
   lastSeenAt: Date,
+  codeScore: Number,
+  /** 'pending' while code answers are still being judged after submission. */
+  gradingStatus: { type: String, enum: ['none', 'pending', 'done'], default: 'none' },
 });
 attemptSchema.index({ assessment: 1, student: 1, attemptNumber: 1 }, { unique: true });
 const gradeSchema = new Schema(
@@ -346,6 +367,49 @@ const cieRecordSchema = new Schema(
   opts,
 );
 cieRecordSchema.index({ subject: 1, student: 1 }, { unique: true });
+const codeRunSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    question: { type: Schema.Types.ObjectId, ref: 'Question' },
+    attempt: { type: Schema.Types.ObjectId, ref: 'Attempt' },
+    assessment: { type: Schema.Types.ObjectId, ref: 'Assessment' },
+    /** run: sample tests; submit: all tests; final: grading after submit; scratch: stdin only. */
+    kind: { type: String, enum: ['run', 'submit', 'final', 'scratch'], required: true },
+    language: { type: String, enum: ['c', 'cpp', 'java', 'python'], required: true },
+    source: { type: String, required: true },
+    sourceHash: { type: String, required: true },
+    stdin: String,
+    status: { type: String, enum: ['queued', 'running', 'done', 'error'], default: 'queued' },
+    results: [
+      {
+        _id: false,
+        index: Number,
+        custom: Boolean,
+        hidden: Boolean,
+        status: String,
+        passed: Boolean,
+        timeMs: Number,
+        memoryKb: Number,
+        stdout: String,
+        stderr: String,
+        compileOutput: String,
+        weight: Number,
+      },
+    ],
+    passedWeight: Number,
+    totalWeight: Number,
+    score: Number,
+    claimedAt: Date,
+    finishedAt: Date,
+    tries: { type: Number, default: 0 },
+    error: String,
+  },
+  opts,
+);
+codeRunSchema.index({ status: 1, createdAt: 1 });
+codeRunSchema.index({ question: 1, user: 1, sourceHash: 1, kind: 1 });
+codeRunSchema.index({ attempt: 1, kind: 1 });
+
 export const User = model('User', userSchema);
 export const Department = model('Department', departmentSchema);
 export const Subject = model('Subject', subjectSchema);
@@ -369,3 +433,4 @@ export const Semester = model('Semester', semesterSchema);
 export const Section = model('Section', sectionSchema);
 export const TeacherAssignment = model('TeacherAssignment', teacherAssignmentSchema);
 export const QuestionBank = model('QuestionBank', questionBankSchema);
+export const CodeRun = model('CodeRun', codeRunSchema);
