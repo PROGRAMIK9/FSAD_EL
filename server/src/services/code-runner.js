@@ -71,7 +71,7 @@ export function scoreResults(items, outputs, question) {
       timeMs: o.timeMs,
       memoryKb: o.memoryKb,
       stdout: clip(o.stdout),
-      stderr: clip(o.stderr || (o.status === 'RE' ? o.message : ''), 2000),
+      stderr: clip(o.stderr || (o.status !== 'OK' ? o.message : ''), 2000),
       compileOutput: clip(o.compileOutput, 4000),
     };
   });

@@ -130,7 +130,7 @@ export function CodeQuestionFields({ control, register, watch, setValue, errors,
       <Field
         label="Test cases"
         required
-        hint="Marks are shared by weight. Hidden tests are only run on submit; students see whether they passed, not their data."
+        hint="Add public cases for students to check with Run. Mark any cases hidden to keep their input and expected output private; hidden cases run on Submit code. Marks are shared by weight."
         error={e.testCases?.message || e.testCases?.root?.message}
       >
         <ul className="space-y-3">
@@ -203,15 +203,26 @@ export function CodeQuestionFields({ control, register, watch, setValue, errors,
           ))}
         </ul>
         {fields.length < 30 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={Plus}
-            className="mt-2"
-            onClick={() => append({ input: '', expectedOutput: '', weight: 1, hidden: true })}
-          >
-            Add test case
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Plus}
+              className="mt-2"
+              onClick={() => append({ input: '', expectedOutput: '', weight: 1, hidden: false })}
+            >
+              Add public test case
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Plus}
+              className="ml-2 mt-2"
+              onClick={() => append({ input: '', expectedOutput: '', weight: 1, hidden: true })}
+            >
+              Add hidden test case
+            </Button>
+          </>
         )}
       </Field>
 

@@ -45,14 +45,14 @@ export default function QuestionBank() {
     <>
       <PageHeader
         title="Question bank"
-        description="Reusable questions for your subjects. Quizzes are assembled from these."
+        description="Create reusable questions for your subjects, including coding problems with public and optional hidden test cases. Add them to a quiz or lab when ready."
         actions={
           <>
             <Button icon={ScanText} onClick={() => setImporting(true)} disabled={!subjects.length}>
               Import paper
             </Button>
-            <Button variant="primary" icon={Plus} onClick={() => setEditor({})} disabled={!subjects.length}>
-              New question
+            <Button variant="primary" icon={Plus} onClick={() => setEditor({})}>
+              Create program
             </Button>
           </>
         }
@@ -134,12 +134,12 @@ export default function QuestionBank() {
           <EmptyState
             icon={FileStack}
             title={view === 'archived' ? 'No archived questions' : 'No questions yet'}
-            description={view === 'archived' ? undefined : 'Add multiple-choice or fill-in questions, then assemble them into 10-mark quizzes.'}
+            description={view === 'archived' ? undefined : 'Create a coding problem with a statement, allowed languages, public test cases, and optional hidden cases. Students run against public cases and submit against all cases.'}
             action={
               view === 'active' &&
               subjects.length > 0 && (
                 <Button variant="primary" icon={Plus} onClick={() => setEditor({})}>
-                  Add your first question
+                  Create your first question
                 </Button>
               )
             }

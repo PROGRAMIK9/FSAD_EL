@@ -143,7 +143,7 @@ router.get(
       language: run.language,
       status: run.status,
       queuedAhead,
-      error: run.status === 'error' ? 'The judge could not run this code. Try again.' : undefined,
+      error: run.status === 'error' ? 'The code judge could not complete this run. Check the server logs for Judge0 details, then try again.' : undefined,
       results: publicRunResults(run.results, { showHidden: staff }),
       passedWeight: run.passedWeight,
       totalWeight: run.totalWeight,

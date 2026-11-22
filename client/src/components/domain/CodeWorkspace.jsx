@@ -272,8 +272,8 @@ export function CodeWorkspace({
           Submit code
         </Button>
         <span className="text-xs text-muted">
-          Run checks the sample tests{stdin !== '' ? ' and your custom input' : ''}. Submit code checks every
-          test.
+          Run checks public tests{stdin !== '' ? ' and your custom input' : ''}. Submit code checks public
+          and hidden tests.
         </span>
       </div>
       <div className="rounded-xl border border-border p-3">
