@@ -65,8 +65,11 @@ export function EmptyState({ icon: Icon, title, description, action, className =
   return (
     <div className={`flex flex-col items-center justify-center px-6 py-12 text-center ${className}`}>
       {Icon && (
-        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
+        <div className="relative mb-4 grid h-16 w-16 place-items-center rounded-full bg-tile-lavender text-tile-ink">
           <Icon className="h-6 w-6" />
+          <svg viewBox="0 0 100 100" className="absolute -right-2 -top-1 h-6 w-6 fill-tile-green" aria-hidden>
+            <path d="M44 4h12l-2 32 26-18 6 10-29 14 29 14-6 10-26-18 2 32H44l2-32-26 18-6-10 29-14L14 28l6-10 26 18z" />
+          </svg>
         </div>
       )}
       <p className="font-display font-semibold text-fg">{title}</p>
@@ -87,12 +90,13 @@ export function ProgressBar({ value, max = 100, tone = 'primary', size = 'md', c
   );
 }
 
-const iconTones = {
-  primary: 'bg-primary-soft text-primary-strong',
-  success: 'bg-success-soft text-success',
-  warn: 'bg-warn-soft text-warn',
-  info: 'bg-info-soft text-info',
-  danger: 'bg-danger-soft text-danger',
+/** Stat tiles use the pastel palette; the tone picks the tile colour. */
+const tileTones = {
+  primary: 'tile-lavender',
+  success: 'tile-green',
+  warn: 'tile-yellow',
+  info: 'tile-lime',
+  danger: 'tile-pink',
 };
 
 /** Metric tile. `variant="hero"` renders the saturated brand card (QuizBox wallet). */
@@ -113,27 +117,31 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'primary', loa
       </div>
     );
   return (
-    <div className={`card flex items-start gap-4 p-5 ${className}`}>
-      {Icon && (
-        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${iconTones[tone]}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-      )}
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-muted">{label}</p>
-        {loading ? <Skeleton className="mt-2 h-7 w-16" /> : <p className="mt-0.5 font-display text-2xl font-bold text-fg tabular">{value ?? '—'}</p>}
-        {hint && <p className="mt-1 text-xs text-subtle">{hint}</p>}
+    <div className={`tile ${tileTones[tone] || 'tile-lavender'} flex min-h-[8.5rem] flex-col justify-between gap-3 ${className}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-semibold">{label}</p>
+        {Icon && (
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-tile-ink/70">
+            <Icon className="h-4 w-4" />
+          </span>
+        )}
+      </div>
+      <div>
+        {loading ? <Skeleton className="h-9 w-16 bg-white/50" /> : <p className="text-[2rem] font-bold leading-none tracking-tight tabular">{value ?? '—'}</p>}
+        {hint && <p className="mt-1.5 text-xs font-medium text-tile-ink/70">{hint}</p>}
       </div>
     </div>
   );
 }
 
-/** Section heading with the QuizBox dot bullet. */
+/** Section heading with a small asterisk mark. */
 export function SectionTitle({ children, action, className = '' }) {
   return (
     <div className={`mb-3 flex items-center justify-between gap-3 ${className}`}>
-      <h2 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-[0.08em] text-fg">
-        <span className="h-2 w-2 rounded-full bg-primary ring-4 ring-primary/15" />
+      <h2 className="flex items-center gap-2 text-base font-bold tracking-tight text-fg">
+        <svg viewBox="0 0 100 100" className="h-4 w-4 fill-tile-green" aria-hidden>
+          <path d="M44 4h12l-2 32 26-18 6 10-29 14 29 14-6 10-26-18 2 32H44l2-32-26 18-6-10 29-14L14 28l6-10 26 18z" />
+        </svg>
         {children}
       </h2>
       {action}
@@ -171,7 +179,7 @@ export function Alert({ tone = 'info', icon: Icon, title, children, className = 
     success: 'border-success/30 bg-success-soft text-success',
   }[tone];
   return (
-    <div className={`flex gap-3 rounded-xl border px-4 py-3 text-sm ${t} ${className}`} role="status">
+    <div className={`flex gap-3 rounded-2xl border px-4 py-3 text-sm ${t} ${className}`} role="status">
       {Icon && <Icon className="mt-0.5 h-4 w-4 shrink-0" />}
       <div className="min-w-0">
         {title && <p className="font-semibold">{title}</p>}

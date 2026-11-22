@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { BarChart3, ClipboardCheck, FlaskConical, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { FlaskConical, Moon, Sun } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { loadGoogleIdentity } from '../../lib/google.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
-import { Alert, Badge, Button, Spinner } from '../../components/ui/index.js';
-import { Brand } from '../../components/layout/AppShell.jsx';
+import { Accent, Alert, Badge, Button, CircleBadge, Crest, Logo, Shape, Spinner, Squiggle, TagPill, Tile } from '../../components/ui/index.js';
 
 const features = [
-  { icon: ClipboardCheck, title: 'Proctored quizzes', text: 'Timed, auto-saved and monitored live by faculty.' },
-  { icon: BarChart3, title: 'Results & analytics', text: 'Instant scoring with question-level insight.' },
-  { icon: ShieldCheck, title: 'Institution sign-in', text: 'Sign in with your RVCE Google account; students are set up automatically.' },
+  { tone: 'green', chip: 'Live', title: 'Proctored', accent: 'Quizzes', shape: 'flower', text: 'Timed, auto-saved and monitored live by faculty.' },
+  { tone: 'lavender', chip: 'C · C++ · Java · Python', title: 'Coding', accent: 'Labs', shape: 'blob', text: 'Write, run and auto-grade code in the browser.' },
+  { tone: 'lime', chip: 'CIE', title: 'Results &', accent: 'Analytics', shape: 'asterisk', text: 'Instant scoring with question-level insight.' },
 ];
 
 function DevLogin({ onSignedIn }) {
@@ -41,7 +40,7 @@ function DevLogin({ onSignedIn }) {
     }
   };
   return (
-    <form onSubmit={submit} className="mt-8 rounded-xl border border-dashed border-warn/50 bg-warn-soft/40 p-4">
+    <form onSubmit={submit} className="mt-8 rounded-3xl border border-dashed border-warn/50 bg-warn-soft/40 p-4">
       <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-warn">
         <FlaskConical className="h-4 w-4" /> Development sign-in <Badge tone="warn">DEV_LOGIN</Badge>
       </p>
@@ -104,41 +103,62 @@ export default function Login() {
   }, [clientId, setUser, theme]);
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      <section className="card-hero m-3 hidden !rounded-[2rem] p-12 lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute -bottom-28 -left-20 -z-10 h-80 w-80 rounded-full bg-white/10" />
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white font-display text-xl font-extrabold text-[#0F62D9]">R</div>
-          <span className="font-display text-lg font-bold">
-            Academic Hub <span className="font-medium text-white/75">· RVCE</span>
-          </span>
+    <div className="grid min-h-screen bg-bg lg:grid-cols-[1.15fr_1fr]">
+      <section className="relative m-3 hidden overflow-hidden rounded-[2rem] bg-surface p-10 lg:flex lg:flex-col xl:p-12">
+        <Squiggle className="absolute inset-x-0 top-40 -z-0 h-40 w-full text-tile-lime" />
+        <div className="relative flex items-center justify-between">
+          <img src="/brand/rv-lockup.png" alt="RV College of Engineering" className="h-14 w-auto dark:hidden" />
+          <img src="/brand/rv-lockup-white.png" alt="RV College of Engineering" className="hidden h-14 w-auto dark:block" />
         </div>
-        <div className="relative max-w-md">
-          <h1 className="text-[2.6rem] font-bold leading-[1.1]">Teaching, assessment and results in one place.</h1>
-          <ul className="mt-10 space-y-6">
-            {features.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex gap-4">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-inset ring-white/25">
-                  <Icon className="h-5 w-5 text-white" />
-                </span>
-                <span>
-                  <span className="block font-display font-semibold">{title}</span>
-                  <span className="text-sm text-white/85">{text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+        <div className="relative mt-14 flex items-start gap-6">
+          <h1 className="max-w-lg text-[3.1rem] font-bold leading-[1.02] tracking-tight text-fg">
+            <span className="inline-flex items-center gap-3">
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-tile-lime">
+                <Shape shape="asterisk" className="h-6 w-6 text-tile-ink" />
+              </span>
+              Academic
+            </span>
+            <Accent className="block text-[3.4rem]">Hub for RVCE</Accent>
+          </h1>
+          <CircleBadge className="mt-2 h-28 w-28">
+            <Crest className="h-12 w-12" color="black" />
+          </CircleBadge>
         </div>
-        <p className="text-xs text-white/70">R V College of Engineering, Bengaluru</p>
+        <p className="relative mt-4 max-w-md text-sm text-muted">Teaching, assessment and results in one place: proctored quizzes, coding labs and CIE marks.</p>
+        <div className="relative mt-6 flex flex-wrap gap-2">
+          <TagPill tone="pink" rotate={-4}>
+            #Quiz
+          </TagPill>
+          <TagPill tone="lavender" rotate={3}>
+            #C++
+          </TagPill>
+          <TagPill tone="green" rotate={-2}>
+            #Python
+          </TagPill>
+          <TagPill tone="yellow" rotate={4}>
+            #CIE
+          </TagPill>
+        </div>
+        <div className="relative mt-auto grid grid-cols-3 gap-4 pt-10">
+          {features.map((f, i) => (
+            <Tile key={f.title} tone={f.tone} chip={f.chip} title={f.title} accent={f.accent} shape={f.shape} arrow className={`min-h-[13rem] ${i === 1 ? '-translate-y-6' : ''}`}>
+              <p className="mt-2 text-xs font-medium text-tile-ink/75">{f.text}</p>
+            </Tile>
+          ))}
+        </div>
+        <Shape shape="heart" className="absolute bottom-[17rem] right-14 h-9 w-9 rotate-12 text-tile-pink" />
+        <Shape shape="star" className="absolute right-40 top-24 h-6 w-6 text-tile-lavender" />
       </section>
 
       <section className="relative flex items-center justify-center px-5 py-12">
-        <Button variant="ghost" icon={theme === 'dark' ? Sun : Moon} onClick={toggle} className="absolute right-4 top-4" aria-label="Toggle theme" />
+        <Button variant="secondary" icon={theme === 'dark' ? Sun : Moon} onClick={toggle} className="absolute right-4 top-4" aria-label="Toggle theme" />
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <Brand />
+          <div className="mb-10 lg:hidden">
+            <Logo />
           </div>
-          <h2 className="text-3xl font-bold">Welcome back</h2>
+          <h2 className="text-[2.4rem] font-bold leading-[1.05] tracking-tight">
+            Welcome <Accent>back</Accent>
+          </h2>
           <p className="mt-2 text-muted">Sign in with your authorised RVCE Google account.</p>
           <div className="mt-8 flex min-h-[44px] items-center">
             <div ref={buttonRef} />

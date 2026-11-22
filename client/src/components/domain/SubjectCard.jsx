@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, GraduationCap, Users } from 'lucide-react';
 import { Badge, Button } from '../ui/index.js';
 
-const accents = ['from-sky-500 to-blue-600', 'from-emerald-500 to-teal-600', 'from-violet-500 to-indigo-600', 'from-amber-500 to-orange-600', 'from-rose-500 to-pink-600'];
+const accents = ['bg-tile-lavender', 'bg-tile-green', 'bg-tile-lime', 'bg-tile-pink', 'bg-tile-yellow'];
 const accentFor = (code = '') => accents[[...code].reduce((n, c) => n + c.charCodeAt(0), 0) % accents.length];
 
 export function SubjectCard({ subject: s, onAllocate }) {
   return (
     <div className="card flex flex-col overflow-hidden">
-      <div className={`h-1.5 bg-gradient-to-r ${accentFor(s.code)}`} />
+      <div className={`h-2.5 ${accentFor(s.code)}`} />
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center justify-between gap-2">
           <Badge tone="primary" className="font-mono">

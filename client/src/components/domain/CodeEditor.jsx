@@ -116,7 +116,7 @@ export function CodeEditor({
     <div
       ref={host}
       data-code-editor
-      className={`flex flex-col overflow-hidden rounded-xl border border-border bg-surface [&>.cm-editor]:flex-1 ${className}`}
+      className={`flex flex-col overflow-hidden rounded-2xl border border-border bg-surface [&>.cm-editor]:flex-1 ${className}`}
       style={{ minHeight, height }}
     />
   );

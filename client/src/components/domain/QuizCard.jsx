@@ -8,6 +8,9 @@ import { fmtDateTime } from '../../lib/format.js';
 const HUES = ['hero-sky', 'hero-indigo', 'hero-teal', 'hero-ocean'];
 /** Stable gradient hue per subject so a subject always looks the same. */
 export const hueFor = (code = '') => HUES[[...code].reduce((n, c) => n + c.charCodeAt(0), 0) % HUES.length];
+const TILES = ['tile-lavender', 'tile-green', 'tile-lime', 'tile-pink', 'tile-yellow'];
+/** Stable pastel tile colour per subject (ink text). */
+export const tileFor = (code = '') => TILES[[...code].reduce((n, c) => n + c.charCodeAt(0), 0) % TILES.length];
 
 const ROOM_JOINABLE = ['SCHEDULED', 'AVAILABLE', 'LIVE', 'PAUSED'];
 const SUBMIT_TEXT = {

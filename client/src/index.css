@@ -8,62 +8,75 @@
  */
 @layer base {
   :root {
-    --c-bg: 244 247 252;
+    /* Canvas: soft lavender-grey page, white surfaces, near-black ink. */
+    --c-bg: 239 237 246;
     --c-surface: 255 255 255;
-    --c-surface-2: 239 244 251;
-    --c-border: 224 232 243;
-    --c-fg: 12 22 40;
-    --c-muted: 82 98 122;
-    --c-subtle: 136 151 173;
-    /* Brand #2E9DFF: fills, rings, progress. `strong` is the accessible text tone,
-       `solid` the background for white button labels. */
-    --c-primary: 46 157 255;
-    --c-primary-strong: 18 108 222;
-    --c-primary-solid: 21 114 232;
+    --c-surface-2: 245 243 251;
+    --c-border: 229 226 240;
+    --c-fg: 17 17 22;
+    --c-muted: 88 86 108;
+    --c-subtle: 140 137 160;
+    /* Violet accent #7B5CF0: links, rings, active states. `strong` is the accessible text
+       tone, `solid` the background for white labels. Primary buttons use ink (black pills). */
+    --c-primary: 123 92 240;
+    --c-primary-strong: 91 59 214;
+    --c-primary-solid: 104 72 228;
     --c-primary-fg: 255 255 255;
-    --c-primary-soft: 232 243 255;
-    --c-ink: 11 18 32;
+    --c-primary-soft: 238 233 255;
+    --c-ink: 17 17 22;
     --c-ink-fg: 255 255 255;
-    --c-success: 16 145 94;
-    --c-success-soft: 226 247 237;
-    --c-warn: 196 120 10;
-    --c-warn-soft: 255 244 222;
-    --c-danger: 222 54 66;
-    --c-danger-soft: 254 236 238;
-    --c-info: 88 96 230;
-    --c-info-soft: 237 238 254;
+    --c-success: 18 150 88;
+    --c-success-soft: 222 249 233;
+    --c-warn: 180 110 0;
+    --c-warn-soft: 255 245 208;
+    --c-danger: 220 48 80;
+    --c-danger-soft: 255 233 239;
+    --c-info: 14 116 180;
+    --c-info-soft: 224 242 254;
     --c-sidebar: 255 255 255;
-    --c-sidebar-fg: 82 98 122;
-    --c-sidebar-active: 232 243 255;
+    --c-sidebar-fg: 88 86 108;
+    --c-sidebar-active: 238 233 255;
+    /* Pastel tiles. They stay light in dark mode and always carry ink text. */
+    --c-tile-green: 47 210 126;
+    --c-tile-lavender: 200 184 246;
+    --c-tile-lime: 221 247 166;
+    --c-tile-pink: 255 168 218;
+    --c-tile-yellow: 255 225 90;
+    --c-tile-ink: 17 17 22;
     color-scheme: light;
   }
 
   .dark {
-    --c-bg: 8 13 23;
-    --c-surface: 15 22 36;
-    --c-surface-2: 22 32 50;
-    --c-border: 34 47 69;
-    --c-fg: 232 239 248;
-    --c-muted: 150 165 190;
-    --c-subtle: 106 121 146;
-    --c-primary: 46 157 255;
-    --c-primary-strong: 110 189 255;
-    --c-primary-solid: 24 124 232;
+    --c-bg: 14 14 19;
+    --c-surface: 23 23 30;
+    --c-surface-2: 31 31 41;
+    --c-border: 43 42 57;
+    --c-fg: 240 238 248;
+    --c-muted: 168 165 190;
+    --c-subtle: 120 117 142;
+    --c-primary: 167 139 250;
+    --c-primary-strong: 196 181 253;
+    --c-primary-solid: 124 92 240;
     --c-primary-fg: 255 255 255;
-    --c-primary-soft: 17 38 66;
-    --c-ink: 236 242 250;
-    --c-ink-fg: 10 16 28;
-    --c-success: 52 199 140;
-    --c-success-soft: 12 46 36;
-    --c-warn: 245 176 70;
-    --c-warn-soft: 52 38 14;
-    --c-danger: 248 113 120;
-    --c-danger-soft: 60 20 26;
-    --c-info: 146 152 255;
-    --c-info-soft: 30 32 70;
-    --c-sidebar: 12 18 30;
-    --c-sidebar-fg: 150 165 190;
-    --c-sidebar-active: 17 38 66;
+    --c-primary-soft: 40 32 74;
+    --c-ink: 245 244 250;
+    --c-ink-fg: 17 17 22;
+    --c-success: 74 222 128;
+    --c-success-soft: 16 52 34;
+    --c-warn: 250 204 21;
+    --c-warn-soft: 58 46 10;
+    --c-danger: 251 113 133;
+    --c-danger-soft: 66 20 32;
+    --c-info: 125 211 252;
+    --c-info-soft: 14 44 66;
+    --c-sidebar: 20 20 27;
+    --c-sidebar-fg: 168 165 190;
+    --c-sidebar-active: 40 32 74;
+    --c-tile-green: 58 200 126;
+    --c-tile-lavender: 190 174 240;
+    --c-tile-lime: 214 240 160;
+    --c-tile-pink: 245 160 210;
+    --c-tile-yellow: 250 220 92;
     color-scheme: dark;
   }
 
@@ -90,33 +103,33 @@
 }
 
 @layer components {
+  /* Pills: black primary ("Get in touch"), outlined secondary. */
   .btn {
-    @apply inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition duration-150 active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-semibold transition duration-150 active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
   }
   .btn svg {
     @apply h-4 w-4 shrink-0;
   }
   .btn-primary {
-    @apply bg-primary-solid text-primary-fg shadow-[0_6px_16px_-8px_rgb(var(--c-primary)/0.8)] hover:bg-primary-solid/90;
+    @apply bg-ink text-ink-fg hover:bg-ink/85;
   }
   .btn-secondary {
-    @apply border border-border bg-surface text-fg shadow-sm hover:border-primary/40 hover:bg-surface-2;
+    @apply border border-fg/15 bg-surface text-fg hover:border-fg/40 hover:bg-surface-2;
   }
   .btn-ghost {
     @apply text-muted hover:bg-surface-2 hover:text-fg;
   }
   .btn-danger {
-    @apply bg-danger text-white shadow-sm hover:bg-danger/90;
+    @apply bg-danger text-white hover:bg-danger/90;
   }
-  /* QuizBox-style black call to action. Inverts in dark mode. */
   .btn-ink {
-    @apply bg-ink font-display text-xs font-bold uppercase tracking-[0.08em] text-ink-fg hover:bg-ink/85;
+    @apply bg-ink text-ink-fg hover:bg-ink/85;
   }
   .btn-sm {
-    @apply h-8 rounded-lg px-3 text-xs;
+    @apply h-8 px-3.5 text-xs;
   }
   .btn-lg {
-    @apply h-12 rounded-2xl px-6 text-base;
+    @apply h-12 px-7 text-base;
   }
   .btn-icon {
     @apply w-10 px-0;
@@ -126,7 +139,7 @@
   }
 
   .input {
-    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg transition placeholder:text-subtle hover:border-subtle/60 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply w-full rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition placeholder:text-subtle hover:border-fg/25 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .input[aria-invalid='true'] {
     @apply border-danger focus:ring-danger/15;
@@ -135,71 +148,110 @@
     @apply mb-1.5 block text-sm font-semibold text-fg;
   }
 
+  /* Flat white card with generous rounding. */
   .card {
-    @apply rounded-2xl border border-border/80 bg-surface shadow-card;
+    @apply rounded-3xl border border-border/70 bg-surface shadow-card;
   }
 
-  /* Saturated brand card with a fading halftone and a soft circle (QuizBox hero). */
+  /* Saturated hero tile with organic shapes (flower, looping line). White text. */
   .card-hero {
-    --hero-from: 46 157 255;
-    --hero-to: 15 98 217;
-    @apply relative isolate overflow-hidden rounded-3xl text-white shadow-hero;
+    --hero-from: 123 92 240;
+    --hero-to: 91 59 214;
+    --hero-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23DDF7A6' d='M50 6c8 0 13 9 13 18 7-6 18-7 23 0s1 17-6 22c8 2 15 10 12 18s-14 10-21 6c1 9-5 18-14 18s-15-9-14-18c-7 4-18 2-21-6s4-16 12-18c-7-5-11-15-6-22s16-6 23 0c0-9 5-18 13-18z'/%3E%3C/svg%3E");
+    @apply relative isolate overflow-hidden rounded-[1.75rem] text-white shadow-hero;
     background-image: linear-gradient(135deg, rgb(var(--hero-from)) 0%, rgb(var(--hero-to)) 100%);
   }
   .card-hero::before {
     content: '';
-    @apply pointer-events-none absolute inset-0 -z-10;
-    background-image: radial-gradient(rgb(255 255 255 / 0.28) 1.1px, transparent 1.7px);
-    background-size: 11px 11px;
-    -webkit-mask-image: linear-gradient(120deg, transparent 40%, #000 100%);
-    mask-image: linear-gradient(120deg, transparent 40%, #000 100%);
+    @apply pointer-events-none absolute inset-0 -z-10 opacity-20;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' preserveAspectRatio='none'%3E%3Cpath d='M-10 150C60 60 120 200 190 120S300 10 260 70 330 190 410 90' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E")
+      no-repeat center / 100% 100%;
   }
   .card-hero::after {
     content: '';
-    @apply pointer-events-none absolute -right-16 -top-20 -z-10 h-56 w-56 rounded-full bg-white/10;
+    @apply pointer-events-none absolute -right-8 -top-10 -z-10 h-40 w-40 opacity-90;
+    background: var(--hero-shape) no-repeat center / contain;
+    transform: rotate(-12deg);
   }
   .hero-sky {
-    --hero-from: 46 157 255;
-    --hero-to: 15 98 217;
+    --hero-from: 123 92 240;
+    --hero-to: 91 59 214;
   }
   .hero-indigo {
-    --hero-from: 102 126 255;
-    --hero-to: 56 72 214;
+    --hero-from: 44 38 74;
+    --hero-to: 22 20 40;
   }
   .hero-teal {
-    --hero-from: 20 184 196;
-    --hero-to: 10 112 168;
+    --hero-from: 20 160 92;
+    --hero-to: 10 120 70;
   }
   .hero-ocean {
-    --hero-from: 56 189 248;
-    --hero-to: 30 110 230;
+    --hero-from: 176 80 216;
+    --hero-to: 110 64 224;
   }
   /* Black CTA tucked into a hero card's bottom-right corner. */
   .cta-corner {
-    @apply absolute bottom-0 right-0 h-auto rounded-none rounded-tl-2xl px-6 py-3.5;
+    @apply absolute bottom-0 right-0 h-auto rounded-none rounded-tl-3xl px-6 py-3.5;
+  }
+
+  /* Pastel tile (reference "Creative Sculpting"): ink text, big radius, no border. */
+  .tile {
+    @apply relative isolate overflow-hidden rounded-[1.75rem] p-5 text-tile-ink;
+  }
+  .tile-green {
+    @apply bg-tile-green;
+  }
+  .tile-lavender {
+    @apply bg-tile-lavender;
+  }
+  .tile-lime {
+    @apply bg-tile-lime;
+  }
+  .tile-pink {
+    @apply bg-tile-pink;
+  }
+  .tile-yellow {
+    @apply bg-tile-yellow;
+  }
+  /* Outlined round arrow button in a tile's corner. */
+  .tile-arrow {
+    @apply grid h-9 w-9 place-items-center rounded-full border border-tile-ink/70 text-tile-ink transition hover:bg-tile-ink hover:text-white;
+  }
+  /* Small outlined pill label on a tile ("3-5 years"). */
+  .tile-chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-tile-ink/70 bg-white/40 px-2.5 py-0.5 text-[11px] font-semibold leading-5 text-tile-ink;
   }
 
   .badge {
     @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
   .chip {
-    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-primary-soft px-2 py-1 font-display text-[10.5px] font-semibold uppercase leading-none tracking-wide text-primary-strong;
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-fg/15 bg-surface px-2.5 py-1 text-[11px] font-semibold leading-none text-fg;
   }
   .chip svg {
     @apply h-3 w-3 shrink-0;
   }
   .chip-light {
-    @apply bg-white/95 text-[#0b1220];
+    @apply border-transparent bg-white text-[#111116];
   }
   .chip-glass {
-    @apply bg-white/15 text-white ring-1 ring-inset ring-white/25;
+    @apply border-white/30 bg-white/15 text-white;
+  }
+  /* Hashtag tag pill (#Drawing). */
+  .tag-pill {
+    @apply inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-bold text-tile-ink;
+  }
+
+  /* Italic serif accent words in headings ("Creative *Kids Academy*"). */
+  .accent {
+    @apply font-accent font-normal italic tracking-normal;
   }
 
   .table-base {
     @apply w-full border-collapse text-left text-sm;
   }
   .table-base th {
-    @apply border-b border-border bg-surface-2/60 px-4 py-3 font-display text-[11px] font-semibold uppercase tracking-wider text-muted;
+    @apply border-b border-border bg-surface-2/60 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted;
   }
   .table-base td {
     @apply border-b border-border/70 px-4 py-3 align-middle;

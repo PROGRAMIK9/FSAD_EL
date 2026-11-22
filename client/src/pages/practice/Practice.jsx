@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Code2, Search, TerminalSquare } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Code2, Search, TerminalSquare } from 'lucide-react';
 import { useApi } from '../../hooks/useApi.js';
 import { LANGUAGES } from '../../lib/code.js';
-import { Alert, Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '../../components/ui/index.js';
+import { Alert, Badge, Card, EmptyState, PageHeader, Shape, Skeleton, Squiggle, TagPill } from '../../components/ui/index.js';
 
 const difficultyTone = { easy: 'success', medium: 'warn', hard: 'danger' };
 
@@ -24,16 +24,42 @@ export default function Practice() {
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Coding"
-        title="Practice"
-        description="Solve coding problems in C, C++, Java or Python. Practice runs are never graded."
-        actions={
-          <Button icon={TerminalSquare} to="/practice/playground">
-            Playground
-          </Button>
-        }
-      />
+      <PageHeader eyebrow="Coding" title="Coding" accent="practice" description="Solve coding problems in C, C++, Java or Python. Practice runs are never graded." />
+      <div className="mb-6 grid gap-4 md:grid-cols-[2fr_1fr]">
+        <section className="tile tile-lime flex min-h-[11rem] flex-col justify-between !p-6">
+          <Shape shape="flower" className="absolute -right-6 -top-8 -z-10 h-36 w-36 rotate-12 text-tile-green" />
+          <Squiggle className="absolute inset-x-0 bottom-6 -z-10 h-20 w-full text-white/80" />
+          <p className="max-w-md text-xl font-bold leading-snug">
+            Write it, run it, <span className="accent text-2xl">get it right.</span>
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <TagPill tone="pink" rotate={-4}>
+              #C
+            </TagPill>
+            <TagPill tone="lavender" rotate={3}>
+              #C++
+            </TagPill>
+            <TagPill tone="yellow" rotate={-2}>
+              #Java
+            </TagPill>
+            <TagPill tone="green" rotate={4}>
+              #Python
+            </TagPill>
+          </div>
+        </section>
+        <Link to="/practice/playground" className="tile tile-lavender group flex flex-col transition hover:-translate-y-1">
+          <Shape shape="asterisk" className="absolute -bottom-6 -right-4 -z-10 h-28 w-28 text-white/50" />
+          <span className="tile-chip self-start">
+            <TerminalSquare className="h-3 w-3" /> Free run
+          </span>
+          <p className="mt-3 text-lg font-bold leading-tight">
+            Code <span className="accent block text-xl">Playground</span>
+          </p>
+          <span className="tile-arrow mt-auto self-end group-hover:bg-tile-ink group-hover:text-white" aria-hidden>
+            <ArrowUpRight className="h-4 w-4" />
+          </span>
+        </Link>
+      </div>
       {error && (
         <Alert tone="danger" title="Couldn't load problems">
           {error}
