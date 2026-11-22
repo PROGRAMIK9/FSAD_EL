@@ -1,6 +1,6 @@
 /**
  * MCA 2024 scheme, 3rd semester: scheme and syllabus transcribed from
- * scheme-syllabus/MCA-24-Scheme-3rd-Semester.pdf (RV College of Engineering).
+ * docs/reference/MCA-24-Scheme-3rd-Semester.pdf (RV College of Engineering).
  */
 
 export const DEPARTMENT = { code: 'MCA', name: 'Master of Computer Applications' };

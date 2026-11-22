@@ -53,7 +53,7 @@ Coding questions are compiled and run by the **code runner** in [`runner/`](../r
 | `RUNNER_AUTH_TOKEN` | the runner's `RUNNER_AUTH_TOKEN` |
 | `JUDGE_MAX_INFLIGHT` | runs sent to the runner at once (default 40; about 2 × the runner's `RUNNER_CONCURRENCY`) |
 
-A self-hosted Judge0 (`JUDGE0_URL`, see [`judge0/`](../judge0/README.md)) is still supported, but it needs a host booted with cgroup v1.
+A self-hosted Judge0 (`JUDGE0_URL`, see [`runner/judge0/`](../runner/judge0/README.md)) is still supported, but it needs a host booted with cgroup v1.
 
 Runs wait in MongoDB (`coderuns` collection) and are handed to the runner by a dispatcher inside the app process, so a burst at the end of an exam queues instead of overloading the runner. If the app restarts, runs it was handling are put back in the queue after 3 minutes. In production without `RUNNER_URL`, Run/Submit answer 503 and the rest of the app works normally.
 
