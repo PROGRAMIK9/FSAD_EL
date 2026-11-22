@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, openQuestionBank } from './fixtures.js';
 
 /**
  * Custom LeetCode-style questions: a teacher builds a function question in the editor (signature,
@@ -32,7 +32,7 @@ test('teacher builds a LeetCode-style function question', async ({ page }) => {
   ids.subject = subject._id;
   ids.other = subjects.find((s) => s._id !== subject._id)._id;
 
-  await page.goto('/questions');
+  await openQuestionBank(page);
   await page.getByRole('button', { name: 'New question' }).first().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Subject').selectOption(subject._id);

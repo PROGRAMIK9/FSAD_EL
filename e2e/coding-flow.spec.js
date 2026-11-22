@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, openQuestionBank } from './fixtures.js';
 
 /**
  * The coding environment end to end, on the fake judge, or on real compilers when RUNNER_URL
@@ -45,7 +45,7 @@ test('teacher writes a coding question with sample and hidden tests', async ({ p
   const subject = subjects.find((s) => s.code === 'MCA261IA') || subjects[0];
   ids.subject = subject._id;
 
-  await page.goto('/questions');
+  await openQuestionBank(page);
   await page.getByRole('button', { name: 'New question' }).first().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Subject').selectOption(subject._id);
