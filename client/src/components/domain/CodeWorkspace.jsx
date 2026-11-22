@@ -1,18 +1,25 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
+  ArrowLeft,
   ChevronDown,
   Cpu,
   EyeOff,
   FlaskConical,
+  Keyboard,
   Loader2,
+  Maximize2,
+  Minimize2,
+  Minus,
   Play,
+  Plus,
   RotateCcw,
   Send,
   TerminalSquare,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { LANGUAGES, LANGUAGE_KEYS, executeCode, starterFor, summarize, verdictOf } from '../../lib/code.js';
-import { Badge, Button, Spinner, Tabs } from '../ui/index.js';
+import { Badge, Button, Spinner, SplitPane } from '../ui/index.js';
 import { formatSignature } from '../../lib/function-drivers.js';
 
 const CodeEditor = lazy(() => import('./CodeEditor.jsx'));
@@ -116,29 +123,150 @@ export function TestResults({ run, samples = [], compact = false }) {
   );
 }
 
-function Samples({ samples, hiddenCount }) {
+/** Editor font size, remembered on this device. */
+export function useCodeFontSize() {
+  const [size, setSize] = useState(() => {
+    try {
+      return Math.min(24, Math.max(11, Number(localStorage.getItem('code-font-size')) || 14));
+    } catch {
+      return 14;
+    }
+  });
+  const set = (n) => {
+    const v = Math.min(24, Math.max(11, n));
+    setSize(v);
+    try {
+      localStorage.setItem('code-font-size', String(v));
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  return [size, set];
+}
+
+/** Toolbar buttons that change the editor font size. */
+export function FontSizeControl({ size, onChange }) {
+  return (
+    <div className="flex items-center rounded-full border border-fg/15" role="group" aria-label="Editor font size">
+      <button type="button" className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface-2 disabled:opacity-40" onClick={() => onChange(size - 1)} disabled={size <= 11} aria-label="Smaller code font">
+        <Minus className="h-3.5 w-3.5" />
+      </button>
+      <span className="w-8 text-center text-xs font-semibold tabular" aria-live="polite" aria-label={`Font size ${size}`}>
+        {size}
+      </span>
+      <button type="button" className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface-2 disabled:opacity-40" onClick={() => onChange(size + 1)} disabled={size >= 24} aria-label="Larger code font">
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/** Fills the space with a panel that scrolls on its own. */
+export const Panel = ({ children, className = '', ...props }) => (
+  <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-surface ${className}`} {...props}>
+    {children}
+  </div>
+);
+
+const SHORTCUT_HINT = 'Ctrl+Enter runs, Ctrl+Shift+Enter submits. Press Escape, then Tab, to move out of the editor.';
+
+function CaseTabs({ samples, hiddenCount }) {
+  const [i, setI] = useState(0);
   if (!samples?.length) return <p className="text-sm text-muted">No sample tests.</p>;
+  const s = samples[Math.min(i, samples.length - 1)];
   return (
     <div className="space-y-3">
-      {samples.map((s, i) => (
-        <div key={s.index} className="grid gap-3 sm:grid-cols-2">
-          <Pre label={`Sample ${i + 1} input`}>{s.input}</Pre>
-          <Pre label="Expected output">{s.expectedOutput}</Pre>
-        </div>
-      ))}
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Sample cases">
+        {samples.map((c, n) => (
+          <button
+            key={c.index}
+            type="button"
+            role="tab"
+            aria-selected={n === i}
+            onClick={() => setI(n)}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${n === i ? 'border-ink bg-ink text-ink-fg' : 'border-fg/15 text-muted hover:text-fg'}`}
+          >
+            Case {n + 1}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-3 xl:grid-cols-2">
+        <Pre label="Input">{s.input}</Pre>
+        <Pre label="Expected output">{s.expectedOutput}</Pre>
+      </div>
       {hiddenCount > 0 && (
         <p className="flex items-center gap-1.5 text-xs text-muted">
-          <EyeOff className="h-3.5 w-3.5" /> {hiddenCount} hidden test{hiddenCount === 1 ? '' : 's'} also run
-          when you submit.
+          <EyeOff className="h-3.5 w-3.5" /> {hiddenCount} hidden test{hiddenCount === 1 ? '' : 's'} also run when you submit.
         </p>
       )}
     </div>
   );
 }
 
+/** Problem statement pane: text, function to implement, examples and limits. */
+function ProblemPane({ question, statement, code }) {
+  return (
+    <Panel>
+      <div className="min-h-0 flex-1 overflow-auto p-5 scrollbar-thin" tabIndex={0} aria-label="Problem statement">
+        {statement || <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg">{question.text}</p>}
+        {code.mode === 'function' && code.signature?.name && (
+          <div className="mt-5 rounded-2xl bg-tile-lime px-4 py-3 text-sm text-tile-ink">
+            <p className="font-semibold">Implement</p>
+            <code className="mt-1 block break-words font-mono text-[13px] font-semibold">{formatSignature(code.signature)}</code>
+            <p className="mt-1 text-xs text-tile-ink/75">Write only the function, inside class Solution where the starter has one. Each test passes the arguments; your return value is compared.</p>
+          </div>
+        )}
+        {code.samples?.length > 0 && (
+          <div className="mt-6 space-y-4">
+            {code.samples.map((s, n) => (
+              <div key={s.index}>
+                <p className="mb-1.5 text-sm font-bold">Example {n + 1}</p>
+                <div className="space-y-2 rounded-2xl border-l-4 border-tile-lavender bg-surface-2/60 p-3 font-mono text-[13px]">
+                  <p className="whitespace-pre-wrap break-words">
+                    <span className="font-sans text-xs font-semibold text-muted">Input </span>
+                    {'\n'}
+                    {s.input || '(empty)'}
+                  </p>
+                  <p className="whitespace-pre-wrap break-words">
+                    <span className="font-sans text-xs font-semibold text-muted">Output </span>
+                    {'\n'}
+                    {s.expectedOutput}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <dl className="mt-6 flex flex-wrap gap-x-6 gap-y-1 border-t border-border pt-4 text-xs text-muted">
+          {code.timeLimitMs ? (
+            <div>
+              <dt className="inline">Time limit </dt>
+              <dd className="inline font-semibold text-fg">{code.timeLimitMs / 1000} s</dd>
+            </div>
+          ) : null}
+          {code.memoryLimitMb ? (
+            <div>
+              <dt className="inline">Memory </dt>
+              <dd className="inline font-semibold text-fg">{code.memoryLimitMb} MB</dd>
+            </div>
+          ) : null}
+          {code.hiddenCount > 0 && (
+            <div>
+              <dt className="inline">Hidden tests </dt>
+              <dd className="inline font-semibold text-fg">{code.hiddenCount}</dd>
+            </div>
+          )}
+        </dl>
+      </div>
+    </Panel>
+  );
+}
+
 /**
- * Editor + tests + run/submit for one coding question. Used by the exam screen (with
- * `attemptId`, autosaving through `onChange`) and by practice.
+ * IDE-style workspace for one coding question: problem | editor over console, with draggable
+ * (and keyboard-resizable) dividers, focus mode, font size, Ctrl+Enter / Ctrl+Shift+Enter, and a
+ * live region that announces run results. Used by practice (with `backTo`) and the exam screen
+ * (with `attemptId`, autosaving through `onChange`; focus mode off because the exam is fullscreen).
  *
  * value: { language, source } | null
  */
@@ -150,13 +278,14 @@ export function CodeWorkspace({
   disabled = false,
   onSubmitted,
   statement = null,
-  layout = 'stack',
+  title,
+  backTo,
+  allowFocusMode = true,
+  height = 'calc(100dvh - 8.5rem)',
 }) {
   const code = question.code || {};
   const languages = (code.languages?.length ? code.languages : LANGUAGE_KEYS).filter((l) => LANGUAGES[l]);
-  const [language, setLanguage] = useState(
-    value?.language && languages.includes(value.language) ? value.language : languages[0],
-  );
+  const [language, setLanguage] = useState(value?.language && languages.includes(value.language) ? value.language : languages[0]);
   const [source, setSource] = useState(value?.source ?? starterFor(language, code.starter));
   const drafts = useRef({});
   const [tab, setTab] = useState('tests');
@@ -164,10 +293,32 @@ export function CodeWorkspace({
   const [busy, setBusy] = useState(null); // 'run' | 'submit'
   const [progress, setProgress] = useState(null);
   const [run, setRun] = useState(null);
+  const [announce, setAnnounce] = useState('');
+  const [focus, setFocus] = useState(false);
+  const [fontSize, setFontSize] = useCodeFontSize();
   const abort = useRef(null);
+  const busyRef = useRef(null);
+  busyRef.current = busy;
   const questionId = question._id || question.id;
+  const uid = useId();
+  const hintId = `${uid}-hint`;
+  const consoleId = `${uid}-console`;
 
   useEffect(() => () => abort.current?.abort(), []);
+  // Focus mode covers the page; lock the page scroll and leave it with Escape (outside the editor).
+  useEffect(() => {
+    if (!focus) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !e.target.closest?.('.cm-editor')) setFocus(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [focus]);
 
   const change = (next) => {
     setSource(next);
@@ -188,150 +339,228 @@ export function CodeWorkspace({
   };
 
   const go = async (kind) => {
+    if (disabled || busyRef.current) return;
     if (!source.trim()) return toast.error('Write some code first');
     abort.current?.abort();
     abort.current = new AbortController();
     setBusy(kind);
     setProgress(null);
     setTab('results');
+    setAnnounce(kind === 'submit' ? 'Submitting: judging against every test.' : 'Running the sample tests.');
     try {
       const body = { questionId, attemptId, language, source };
       if (kind === 'run' && stdin !== '') body.stdin = stdin;
       const done = await executeCode(kind, body, { onProgress: setProgress, signal: abort.current.signal });
       setRun(done);
+      setAnnounce(`${kind === 'submit' ? 'Submission' : 'Run'} finished: ${summarize(done)?.text || done.status}.`);
       if (kind === 'submit') onSubmitted?.(done);
     } catch (err) {
-      if (String(err) !== 'Error: Cancelled') toast.error(String(err).replace(/^Error: /, ''));
+      if (String(err) !== 'Error: Cancelled') {
+        toast.error(String(err).replace(/^Error: /, ''));
+        setAnnounce('The run failed.');
+      }
     } finally {
       setBusy(null);
       setProgress(null);
     }
   };
 
-  const panelTabs = [
-    { value: 'tests', label: 'Sample tests', icon: FlaskConical },
+  const consoleTabs = [
+    { value: 'tests', label: 'Test cases', icon: FlaskConical },
     { value: 'input', label: 'Custom input', icon: TerminalSquare },
     { value: 'results', label: 'Results', icon: Cpu },
   ];
 
-  const editor = (
-    <div className="flex min-w-0 flex-col gap-3">
-      {code.mode === 'function' && code.signature?.name && (
-        <p className="rounded-2xl bg-tile-lime px-4 py-2.5 text-sm text-tile-ink">
-          <span className="font-semibold">Implement</span> <code className="font-mono font-semibold">{formatSignature(code.signature)}</code>
-          <span className="mt-0.5 block text-xs text-tile-ink/70">Write only the function (in a class Solution where the starter has one). Each test passes the arguments; your return value is compared.</span>
-        </p>
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2 pb-3">
+      {backTo && (
+        <Link to={backTo} className="btn btn-ghost btn-sm" aria-label="Back to practice">
+          <ArrowLeft /> <span className="hidden sm:inline">Practice</span>
+        </Link>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="input w-auto py-1.5 pr-8 text-sm"
-          value={language}
-          disabled={disabled || busy}
-          onChange={(e) => switchLanguage(e.target.value)}
-          aria-label="Language"
-        >
-          {languages.map((l) => (
-            <option key={l} value={l}>
-              {LANGUAGES[l].label}
-            </option>
-          ))}
-        </select>
-        <Button size="sm" variant="ghost" icon={RotateCcw} disabled={disabled || busy} onClick={reset}>
-          Reset
+      {title && <h1 className="mr-2 min-w-0 max-w-[40ch] truncate text-base font-bold tracking-tight sm:text-lg">{title}</h1>}
+      <select className="input h-8 w-auto rounded-full py-0 pr-8 text-sm" value={language} disabled={disabled || Boolean(busy)} onChange={(e) => switchLanguage(e.target.value)} aria-label="Language">
+        {languages.map((l) => (
+          <option key={l} value={l}>
+            {LANGUAGES[l].label}
+          </option>
+        ))}
+      </select>
+      <Button size="sm" variant="ghost" icon={RotateCcw} disabled={disabled || Boolean(busy)} onClick={reset} title="Replace your code with the starter code">
+        <span className="hidden md:inline">Reset</span>
+      </Button>
+      <FontSizeControl size={fontSize} onChange={setFontSize} />
+      {allowFocusMode && (
+        <Button size="sm" variant="ghost" icon={focus ? Minimize2 : Maximize2} onClick={() => setFocus((f) => !f)} aria-pressed={focus} title={focus ? 'Exit focus mode (Esc)' : 'Focus mode: hide everything else'}>
+          <span className="hidden md:inline">{focus ? 'Exit focus' : 'Focus'}</span>
         </Button>
-        <span className="ml-auto hidden text-xs text-muted sm:inline">
-          {code.timeLimitMs ? `${code.timeLimitMs / 1000}s` : ''}{' '}
-          {code.memoryLimitMb ? `· ${code.memoryLimitMb} MB` : ''}
-        </span>
-      </div>
-      <Suspense
-        fallback={
-          <div className="grid h-72 place-items-center rounded-xl border border-border">
-            <Spinner />
-          </div>
-        }
-      >
-        <CodeEditor
-          value={source}
-          onChange={change}
-          language={language}
-          readOnly={disabled}
-          minHeight={layout === 'split' ? '24rem' : '20rem'}
-          ariaLabel={`Code for question`}
-        />
-      </Suspense>
-      <div className="flex flex-wrap items-center gap-2">
+      )}
+      <div className="ml-auto flex items-center gap-2">
         <Button
+          size="sm"
           icon={busy === 'run' ? Loader2 : Play}
           disabled={disabled || Boolean(busy)}
           onClick={() => go('run')}
           className={busy === 'run' ? '[&>svg]:animate-spin' : ''}
+          aria-keyshortcuts="Control+Enter"
+          title="Run the sample tests (Ctrl+Enter)"
         >
           Run
         </Button>
         <Button
+          size="sm"
           variant="primary"
           icon={busy === 'submit' ? Loader2 : Send}
           disabled={disabled || Boolean(busy)}
           onClick={() => go('submit')}
           className={busy === 'submit' ? '[&>svg]:animate-spin' : ''}
+          aria-keyshortcuts="Control+Shift+Enter"
+          title="Judge against every test (Ctrl+Shift+Enter)"
         >
           Submit code
         </Button>
-        <span className="text-xs text-muted">
-          Run checks the sample tests{stdin !== '' ? ' and your custom input' : ''}. Submit code checks every
-          test.
+      </div>
+    </div>
+  );
+
+  const editorPane = (
+    <Panel className="!rounded-3xl">
+      <div className="min-h-0 flex-1">
+        <Suspense
+          fallback={
+            <div className="grid h-full place-items-center">
+              <Spinner />
+            </div>
+          }
+        >
+          <CodeEditor
+            value={source}
+            onChange={change}
+            language={language}
+            readOnly={disabled}
+            fill
+            fontSize={fontSize}
+            className="!rounded-none !border-0"
+            ariaLabel={`${LANGUAGES[language]?.label || ''} code editor${title ? ` for ${title}` : ''}`}
+            describedBy={hintId}
+            onRun={() => go('run')}
+            onSubmit={() => go('submit')}
+          />
+        </Suspense>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-surface-2/50 px-4 py-1.5 text-[11px] text-muted">
+        <span className="font-semibold text-fg">{LANGUAGES[language]?.label}</span>
+        <span id={hintId} className="flex items-center gap-1.5">
+          <Keyboard className="h-3.5 w-3.5" aria-hidden />
+          <span>
+            <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Enter</kbd> run · <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">Enter</kbd> submit · <kbd className="kbd">Esc</kbd> then{' '}
+            <kbd className="kbd">Tab</kbd> leaves the editor
+          </span>
+          <span className="sr-only">{SHORTCUT_HINT}</span>
         </span>
       </div>
-      <div className="rounded-xl border border-border p-3">
-        <Tabs items={panelTabs} value={tab} onChange={setTab} className="mb-3" />
-        {tab === 'tests' && <Samples samples={code.samples} hiddenCount={code.hiddenCount} />}
+    </Panel>
+  );
+
+  const consolePane = (
+    <Panel>
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-3 py-2" role="tablist" aria-label="Console">
+        {consoleTabs.map(({ value: v, label, icon: Icon }) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            id={`${consoleId}-${v}`}
+            aria-selected={tab === v}
+            aria-controls={`${consoleId}-panel`}
+            onClick={() => setTab(v)}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition ${tab === v ? 'bg-ink text-ink-fg' : 'text-muted hover:bg-surface-2 hover:text-fg'}`}
+          >
+            <Icon className={`h-4 w-4 ${tab === v ? 'text-tile-green' : ''}`} aria-hidden />
+            {label}
+          </button>
+        ))}
+        {run && !busy && tab !== 'results' && (
+          <span className="ml-auto shrink-0">
+            <Badge tone={summarize(run).tone} dot>
+              {summarize(run).text}
+            </Badge>
+          </span>
+        )}
+      </div>
+      <div id={`${consoleId}-panel`} role="tabpanel" aria-labelledby={`${consoleId}-${tab}`} tabIndex={0} className="min-h-0 flex-1 overflow-auto p-4 scrollbar-thin">
+        {tab === 'tests' && <CaseTabs samples={code.samples} hiddenCount={code.hiddenCount} />}
         {tab === 'input' && (
-          <div>
+          <div className="flex h-full min-h-[8rem] flex-col">
+            <label className="label" htmlFor={`${uid}-stdin`}>
+              Custom input <span className="font-normal text-muted">(stdin)</span>
+            </label>
             <textarea
-              className="input min-h-[96px] resize-y font-mono text-sm"
+              id={`${uid}-stdin`}
+              className="input min-h-[6rem] flex-1 resize-none font-mono text-sm"
+              style={{ fontSize }}
               value={stdin}
               onChange={(e) => setStdin(e.target.value)}
-              placeholder="Input given to your program on stdin"
+              placeholder="Input given to your program"
               spellCheck={false}
-              aria-label="Custom input"
               data-code-editor
             />
-            <p className="mt-1 text-xs text-muted">
-              Run shows your program's output for this input. Clear it to run only the sample tests.
-            </p>
+            <p className="mt-1.5 text-xs text-muted">Run also shows your program's output for this input. Clear it to run only the sample tests.</p>
           </div>
         )}
         {tab === 'results' &&
           (busy ? (
             <p className="flex items-center gap-2 text-sm text-muted">
               <Spinner className="h-4 w-4" />
-              {progress?.status === 'queued' && progress.queuedAhead > 0
-                ? `Waiting in line (${progress.queuedAhead} ahead)…`
-                : busy === 'submit'
-                  ? 'Judging against all tests…'
-                  : 'Running…'}
+              {progress?.status === 'queued' && progress.queuedAhead > 0 ? `Waiting in line (${progress.queuedAhead} ahead)…` : busy === 'submit' ? 'Judging against every test…' : 'Running…'}
             </p>
           ) : run ? (
             <TestResults run={run} samples={code.samples} />
           ) : (
-            <p className="text-sm text-muted">Run your code to see results here.</p>
+            <p className="text-sm text-muted">
+              Run your code to see results here. <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Enter</kbd>
+            </p>
           ))}
       </div>
-    </div>
+    </Panel>
   );
 
-  if (layout === 'split' && statement)
-    return (
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="min-w-0">{statement}</div>
-        {editor}
-      </div>
-    );
   return (
-    <div className="space-y-5">
-      {statement}
-      {editor}
-    </div>
+    <section
+      aria-label="Coding workspace"
+      className={focus ? 'fixed inset-0 z-50 flex flex-col bg-bg p-3 sm:p-4' : 'flex flex-col lg:h-[var(--ws-h)] lg:min-h-[34rem]'}
+      style={focus ? undefined : { '--ws-h': height }}
+    >
+      {toolbar}
+      <SplitPane
+        id="ws-main"
+        className="min-h-0 flex-1 gap-3 lg:gap-0"
+        initial={40}
+        min={22}
+        max={70}
+        label="Resize problem and editor"
+        first={
+          <div className="h-[55vh] lg:h-full">
+            <ProblemPane question={question} statement={statement} code={code} />
+          </div>
+        }
+        second={
+          <SplitPane
+            id="ws-editor"
+            direction="vertical"
+            className="h-[85vh] lg:h-full"
+            initial={62}
+            min={25}
+            max={85}
+            label="Resize editor and console"
+            first={editorPane}
+            second={consolePane}
+          />
+        }
+      />
+      <div aria-live="polite" role="status" className="sr-only">
+        {announce}
+      </div>
+    </section>
   );
 }

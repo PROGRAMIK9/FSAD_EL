@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { basicSetup } from 'codemirror';
-import { Compartment, EditorState } from '@codemirror/state';
+import { Compartment, EditorState, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { indentUnit } from '@codemirror/language';
@@ -42,18 +42,36 @@ export function CodeEditor({
   minHeight = '18rem',
   height,
   ariaLabel = 'Code editor',
+  describedBy,
+  fontSize = 14,
+  onRun,
+  onSubmit,
+  fill = false,
   className = '',
 }) {
   const host = useRef(null);
   const view = useRef(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // Shortcut handlers are read through refs so the keymap is created once.
+  const actions = useRef({});
+  actions.current = { onRun, onSubmit };
   const { theme } = useTheme();
   const compartments = useRef({
     lang: new Compartment(),
     theme: new Compartment(),
     readOnly: new Compartment(),
+    attrs: new Compartment(),
   });
+  const contentAttrs = () =>
+    EditorView.contentAttributes.of({
+      'aria-label': ariaLabel,
+      ...(describedBy ? { 'aria-describedby': describedBy } : {}),
+      'aria-multiline': 'true',
+      spellcheck: 'false',
+      autocorrect: 'off',
+      autocapitalize: 'off',
+    });
 
   useEffect(() => {
     const c = compartments.current;
@@ -63,6 +81,15 @@ export function CodeEditor({
         doc: value ?? '',
         extensions: [
           basicSetup,
+          // Ctrl/Cmd+Enter runs, Ctrl/Cmd+Shift+Enter submits (before the default Enter handling).
+          // Highest precedence: the default keymap binds Mod-Enter to "insert blank line".
+          Prec.highest(
+            keymap.of([
+            { key: 'Mod-Shift-Enter', run: () => (actions.current.onSubmit ? (actions.current.onSubmit(), true) : false) },
+            { key: 'Mod-Enter', run: () => (actions.current.onRun ? (actions.current.onRun(), true) : false) },
+            ]),
+          ),
+          // Tab indents; keyboard users leave the editor with Escape then Tab (CodeMirror built-in).
           keymap.of([indentWithTab]),
           indentUnit.of('    '),
           EditorState.tabSize.of(4),
@@ -70,12 +97,7 @@ export function CodeEditor({
           c.lang.of((languageSupport[language] || cpp)()),
           c.theme.of(theme === 'dark' ? oneDark : lightTheme),
           c.readOnly.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
-          EditorView.contentAttributes.of({
-            'aria-label': ariaLabel,
-            spellcheck: 'false',
-            autocorrect: 'off',
-            autocapitalize: 'off',
-          }),
+          c.attrs.of(contentAttrs()),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onChangeRef.current?.(u.state.doc.toString());
           }),
@@ -87,6 +109,10 @@ export function CodeEditor({
     // The editor is created once; props below are applied through compartments.
   }, []);
 
+  // The accessible name follows the language ("Python 3 code editor").
+  useEffect(() => {
+    view.current?.dispatch({ effects: compartments.current.attrs.reconfigure(contentAttrs()) });
+  }, [ariaLabel, describedBy]);
   useEffect(() => {
     view.current?.dispatch({
       effects: compartments.current.lang.reconfigure((languageSupport[language] || cpp)()),
@@ -116,8 +142,8 @@ export function CodeEditor({
     <div
       ref={host}
       data-code-editor
-      className={`flex flex-col overflow-hidden rounded-2xl border border-border bg-surface [&>.cm-editor]:flex-1 ${className}`}
-      style={{ minHeight, height }}
+      className={`flex flex-col overflow-hidden rounded-2xl border border-border bg-surface [&>.cm-editor]:flex-1 [&_.cm-editor]:min-h-0 ${fill ? 'h-full [&>.cm-editor]:h-full' : ''} ${className}`}
+      style={{ minHeight: fill ? 0 : minHeight, height, '--code-font-size': `${fontSize}px` }}
     />
   );
 }

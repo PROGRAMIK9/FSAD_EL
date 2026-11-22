@@ -116,6 +116,19 @@ test('students see the signature, never the drivers', async ({ page }) => {
   await page.goto(`/practice/${ids.question}`);
   await expect(page.getByText('twoSum(nums: int[], target: int) → int[]')).toBeVisible();
   await page.getByLabel('Language').selectOption('python');
-  await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByText(/1\/1 test passed|0\/1 test passed/)).toBeVisible();
+  // Keyboard: Ctrl+Enter in the editor runs the code.
+  await page.locator('[data-code-editor] .cm-content').first().click();
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(page.getByText(/^[01]\/1 test passed$/)).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: /Run finished/ })).toBeAttached();
+
+  // The dividers are keyboard-resizable separators, and the editor is labelled.
+  const divider = page.getByRole('separator', { name: 'Resize problem and editor' });
+  const before = Number(await divider.getAttribute('aria-valuenow'));
+  await divider.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(divider).toHaveAttribute('aria-valuenow', String(before + 2));
+  await page.keyboard.press('Enter');
+  await expect(divider).toHaveAttribute('aria-valuenow', '40');
+  await expect(page.getByRole('textbox', { name: /Python 3 code editor/ })).toBeVisible();
 });

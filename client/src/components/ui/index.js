@@ -11,3 +11,4 @@ export { PageHeader, Toolbar, splitAccent } from './PageHeader.jsx';
 export { MultiPicker } from './MultiPicker.jsx';
 export { ExportMenu } from './ExportMenu.jsx';
 export { Accent, Crest, Logo, Shape, Squiggle, TagPill, Tile, TILE_TONES, CircleBadge } from './Brand.jsx';
+export { SplitPane } from './SplitPane.jsx';

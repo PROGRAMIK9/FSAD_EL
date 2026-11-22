@@ -172,6 +172,9 @@ function Topbar({ onMenu }) {
 }
 
 export function AppShell({ children }) {
+  const { pathname } = useLocation();
+  // Full-width, tighter page for the coding workspace and playground.
+  const wide = /^\/practice\/.+/.test(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -194,7 +197,7 @@ export function AppShell({ children }) {
       <Sidebar collapsed={collapsed} onCollapse={toggleCollapsed} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className={`transition-[padding] duration-200 ${collapsed ? 'lg:pl-[80px]' : 'lg:pl-64'}`}>
         <Topbar onMenu={() => setMobileOpen(true)} />
-        <main className="mx-auto w-full max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main className={`mx-auto w-full ${wide ? 'max-w-none px-3 py-4 sm:px-4' : 'max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8'}`}>{children}</main>
       </div>
     </div>
   );

@@ -116,14 +116,16 @@ test('student solves the problem in the proctored editor and submits', async ({ 
   await page.getByLabel('Language').selectOption('python');
   await typeCode(page, '# FAKE:WA\nprint(0)\n');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByText('0/1 test passed')).toBeVisible();
+  await expect(page.getByText('0/1 test passed', { exact: true })).toBeVisible();
   await expect(page.getByText('Wrong answer')).toBeVisible();
 
   await typeCode(page, 'a, b = map(int, input().split())\nprint(a + b)\n');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByText('1/1 test passed')).toBeVisible();
+  await expect(page.getByText('1/1 test passed', { exact: true })).toBeVisible();
+  // Screen readers hear the result.
+  await expect(page.getByRole('status').filter({ hasText: 'Run finished: 1/1 test passed.' })).toBeAttached();
   await page.getByRole('button', { name: 'Submit code' }).click();
-  await expect(page.getByText('3/3 tests passed')).toBeVisible();
+  await expect(page.getByText('3/3 tests passed', { exact: true })).toBeVisible();
   await expect(page.getByText('Hidden test 2')).toBeVisible();
 
   await expect(page.getByText(/Saved/)).toBeVisible();
@@ -158,13 +160,13 @@ test('the problem is open for practice', async ({ page }) => {
   await page.getByLabel('Language').selectOption('cpp');
   await typeCode(page, '#include <iostream>\nint main(){int a,b;std::cin>>a>>b;std::cout<<a+b;}\n');
   await page.getByRole('button', { name: 'Submit code' }).click();
-  await expect(page.getByText('3/3 tests passed')).toBeVisible();
+  await expect(page.getByText('3/3 tests passed', { exact: true })).toBeVisible();
 
   await page.goto('/practice/playground');
   await typeCode(page, 'print(input())\n');
   await page.getByLabel('Language').selectOption('python');
   await typeCode(page, 'print(input())\n');
-  await page.getByLabel('Input', { exact: true }).fill('hello');
+  await page.getByLabel(/^Input/).fill('hello');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.locator('pre').filter({ hasText: 'hello' })).toBeVisible();
 });

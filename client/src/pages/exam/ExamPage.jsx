@@ -192,6 +192,35 @@ function Palette({ questions, answers, current, onJump }) {
 }
 
 function QuestionView({ q, index, total, answer, onAnswer, disabled, noSelect, attemptId }) {
+  if (q.type === 'code')
+    return (
+      <CodeWorkspace
+        question={q}
+        value={answer?.value && typeof answer.value === 'object' ? answer.value : null}
+        attemptId={attemptId}
+        disabled={disabled}
+        onChange={(v) => onAnswer({ value: v }, { debounce: 2000 })}
+        allowFocusMode={false}
+        height="calc(100dvh - 17.5rem)"
+        title={`Question ${index + 1} of ${total}`}
+        statement={
+          <div className={noSelect ? 'no-select' : ''}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-ink-fg tabular">
+                {index + 1}
+                <span className="opacity-60">/ {total}</span>
+              </span>
+              <span className="chip">Write a program</span>
+              <span className="chip bg-surface-2 text-muted">
+                {q.marks} mark{q.marks === 1 ? '' : 's'}
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg">{q.text}</p>
+            <p className="mt-4 text-xs text-subtle">Your code saves automatically. When the quiz is submitted, the last saved code is judged against every test.</p>
+          </div>
+        }
+      />
+    );
   return (
     <div className="animate-fade-in">
       <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -439,7 +468,9 @@ export default function ExamPage() {
   useEffect(() => {
     if (phase !== 'exam') return;
     const onKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey) return;
+      // Arrow keys inside the code editor, a resizable divider or a tab list are theirs.
+      if (e.target.isContentEditable || e.target.closest?.('[data-code-editor], [role="separator"], [role="tablist"], [role="radiogroup"]')) return;
       if (e.key === 'ArrowRight') setCurrent((c) => Math.min(questions.length - 1, c + 1));
       if (e.key === 'ArrowLeft') setCurrent((c) => Math.max(0, c - 1));
     };
@@ -536,9 +567,9 @@ export default function ExamPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_18rem] lg:py-8">
+      <div className={`mx-auto grid w-full flex-1 gap-6 ${q?.type === 'code' ? 'max-w-none px-3 py-3 sm:px-4' : 'max-w-6xl px-4 py-6 sm:px-6 lg:grid-cols-[1fr_18rem] lg:py-8'}`}>
         <main className="min-w-0">
-          <div className="mb-4 lg:hidden">
+          <div className={`mb-4 ${q?.type === 'code' ? '' : 'lg:hidden'}`}>
             <Button size="sm" icon={Grid3x3} onClick={() => setPaletteOpen((o) => !o)}>
               {answeredCount}/{questions.length} answered
             </Button>
@@ -548,7 +579,7 @@ export default function ExamPage() {
               </div>
             )}
           </div>
-          <div className="card rounded-3xl p-6 sm:p-8">
+          <div className={q?.type === 'code' ? '' : 'card rounded-3xl p-6 sm:p-8'}>
             {q && <QuestionView key={q._id} q={q} index={current} total={questions.length} answer={answers[q._id]} disabled={locked} attemptId={exam.attempt.id} noSelect={policy.enabled && policy.blockClipboard} onAnswer={(patch, opts) => update(q._id, patch, opts)} />}
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -574,7 +605,7 @@ export default function ExamPage() {
             Use <span className="kbd">←</span> <span className="kbd">→</span> to move between questions
           </p>
         </main>
-        <aside className="hidden lg:block">
+        <aside className={q?.type === 'code' ? 'hidden' : 'hidden lg:block'}>
           <div className="card sticky top-[148px] p-5">
             <div className="mb-4 flex items-center justify-between">
               <p className="font-display text-sm font-semibold">Questions</p>
