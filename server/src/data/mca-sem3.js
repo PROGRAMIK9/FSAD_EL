@@ -5,7 +5,8 @@
 
 export const DEPARTMENT = { code: 'MCA', name: 'Master of Computer Applications' };
 export const ACADEMIC_YEAR = { label: '2026-27', startsAt: '2026-08-01', endsAt: '2027-07-31' };
-export const SEMESTER = { number: 3, name: 'Semester III', startsAt: '2026-08-01', endsAt: '2026-12-31' };
+// Classes from the commencement of the odd semester to the last working day (academic calendar).
+export const SEMESTER = { number: 3, name: 'Semester III', startsAt: '2026-09-16', endsAt: '2026-12-31' };
 
 /** CIE (theory) rubric shared by every theory course in the scheme. */
 export const CIE_THEORY = {

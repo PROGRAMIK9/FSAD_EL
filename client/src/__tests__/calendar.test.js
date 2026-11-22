@@ -39,3 +39,27 @@ describe('calendar helpers', () => {
     expect(toneFor('Holiday')).toContain('bg-surface-2');
   });
 });
+
+describe('multi-day events', async () => {
+  const { spanDays, isMultiDay, kindOf } = await import('../lib/calendar.js');
+  const cie = { startAt: new Date(2026, 9, 14, 0, 0).toISOString(), endAt: new Date(2026, 9, 16, 23, 59, 59).toISOString(), allDay: true, type: 'CIE' };
+
+  it('spans every covered day', () => {
+    expect(isMultiDay(cie)).toBe(true);
+    expect(spanDays(cie)).toBe(3);
+    const m = byDay([cie]);
+    expect([15, 16].map((d) => m.get(dayKey(new Date(2026, 9, d)))[0].seg)).toEqual([
+      { index: 1, total: 3 },
+      { index: 2, total: 3 },
+    ]);
+    const single = { startAt: new Date(2026, 9, 27, 0, 0).toISOString(), endAt: new Date(2026, 9, 27, 23, 59, 59).toISOString(), allDay: true };
+    expect(spanDays(single)).toBe(1);
+  });
+
+  it('maps types to legend kinds', () => {
+    expect(kindOf('Assignment deadline')).toBe('Deadline');
+    expect(kindOf('Exam')).toBe('Exam');
+    expect(kindOf('Review')).toBe('Review');
+    expect(kindOf('Academic date')).toBe('Other');
+  });
+});

@@ -1049,6 +1049,7 @@ router.post(
         startAt: z.coerce.date(),
         endAt: z.coerce.date().optional(),
         type: z.string().default('Academic date'),
+        allDay: z.boolean().default(false),
       })
       .parse(req.body);
     if (b.endAt && b.endAt < b.startAt)

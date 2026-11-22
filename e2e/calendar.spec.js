@@ -111,3 +111,23 @@ test('students see a read-only board', async ({ page }) => {
   const res = await page.request.patch(`/api/calendar/events/${ids.quizEvent}`, { data: { startAt: new Date().toISOString() } });
   expect(res.status()).toBe(403);
 });
+
+test('the official academic calendar is on the board', async ({ page }) => {
+  await signIn(page, USERS.student);
+  const events = await api(page, 'get', `/calendar/events?from=${new Date(2026, 9, 1).toISOString()}&to=${new Date(2026, 10, 1).toISOString()}`);
+  const cie1 = events.find((e) => e.title === 'CIE-I');
+  expect(cie1).toMatchObject({ type: 'CIE', allDay: true, subject: null });
+  await page.goto('/calendar');
+  await page.getByRole('tab', { name: 'Month' }).click();
+  // Navigate to October 2026.
+  for (let i = 0; i < 24 && !(await page.getByRole('heading', { name: 'October 2026' }).count()); i++) {
+    const now = await page.getByRole('heading', { name: /\d{4}$/ }).first().textContent();
+    await page.getByRole('button', { name: new Date(`1 ${now}`) > new Date(2026, 9, 1) ? 'Previous' : 'Next' }).click();
+  }
+  for (const d of ['2026-10-14', '2026-10-15', '2026-10-16'])
+    await expect(page.locator(`[data-day="${d}"]`).getByText('CIE-I', { exact: false })).toBeVisible();
+  // Staff (admin) only: teachers cannot move institution-wide dates.
+  await signIn(page, USERS.teacher);
+  const asTeacher = await api(page, 'get', `/calendar/events?from=${new Date(2026, 9, 1).toISOString()}&to=${new Date(2026, 10, 1).toISOString()}`);
+  expect(asTeacher.find((e) => e.title === 'CIE-I').moveBlocker).toMatch(/administrators/);
+});

@@ -299,6 +299,8 @@ const calendarSchema = new Schema(
     startAt: Date,
     endAt: Date,
     type: String,
+    /** Whole-day entry (startAt is the first day's midnight IST, endAt the last day's 23:59). */
+    allDay: { type: Boolean, default: false },
     createdBy: Schema.Types.ObjectId,
     /** What the entry was created for; rescheduling it moves that record too. */
     source: {

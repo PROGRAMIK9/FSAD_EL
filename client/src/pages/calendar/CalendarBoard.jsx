@@ -5,11 +5,23 @@ import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Columns3, GripV
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { fmtDateTime } from '../../lib/format.js';
-import { TYPE_LEGEND, byDay, dayKey, monthGrid, moveToDay, rangeFor, sameDay, startOfDay, step, toLocalInput, toneFor, weekDays } from '../../lib/calendar.js';
+import { TYPE_LEGEND, addDays, byDay, dayKey, kindOf, monthGrid, moveToDay, rangeFor, sameDay, spanDays, startOfDay, step, toLocalInput, toneFor, weekDays } from '../../lib/calendar.js';
 import { Button, EmptyState, Input, Modal, PageHeader, Select, Spinner, Tabs, Textarea, useConfirm } from '../../components/ui/index.js';
 
 const time = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const dayLabel = (d, opts = { weekday: 'long', day: 'numeric', month: 'long' }) => new Date(d).toLocaleDateString([], opts);
+const shortDate = (d) => new Date(d).toLocaleDateString([], { day: 'numeric', month: 'short' });
+/** "10:00", "All day", "14 Oct – 16 Oct" or "10:00 · 3 days". */
+function when(e) {
+  const days = spanDays(e);
+  if (days > 1) return e.allDay ? `${shortDate(e.startAt)} – ${shortDate(new Date(new Date(e.endAt).getTime() - 1))}` : `${time(e.startAt)} · ${days} days`;
+  return e.allDay ? 'All day' : time(e.startAt);
+}
+/** Tile tones carry ink text; neutral cards keep the theme's text colour. */
+const cardTone = (type) => {
+  const t = toneFor(type);
+  return t.startsWith('tile-') ? `${t} text-tile-ink` : t;
+};
 const LINK_HREF = { assessment: '/assessments', assignment: '/assignments', announcement: '/announcements' };
 const LINK_NOUN = { assessment: 'quiz', assignment: 'assignment' };
 
@@ -19,19 +31,20 @@ function EventCard({ e, compact = false, onOpen, onReschedule, onDragStart }) {
     <div
       draggable={e.canMove}
       onDragStart={(ev) => onDragStart(ev, e)}
-      className={`group relative rounded-2xl ${toneFor(e.type)} ${e.canMove ? 'cursor-grab active:cursor-grabbing' : ''} ${compact ? 'px-2 py-1' : 'p-3'} text-tile-ink transition hover:-translate-y-0.5 hover:shadow-lift`}
+      className={`group relative rounded-2xl ${cardTone(e.type)} ${e.canMove ? 'cursor-grab active:cursor-grabbing' : ''} ${compact ? 'px-2 py-1' : 'p-3'} transition hover:-translate-y-0.5 hover:shadow-lift`}
       data-event-id={e._id}
     >
-      <button type="button" onClick={() => onOpen(e)} className="block w-full min-w-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`${e.title}, ${e.subject?.code || 'Institution-wide'}, ${dayLabel(e.startAt)} ${time(e.startAt)}`}>
+      <button type="button" onClick={() => onOpen(e)} className="block w-full min-w-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`${e.title}, ${e.subject?.code || 'Institution-wide'}, ${dayLabel(e.startAt)}, ${when(e)}${e.seg ? `, day ${e.seg.index + 1} of ${e.seg.total}` : ''}`}>
         {compact ? (
           <span className="block truncate text-[11px] font-semibold">
-            {time(e.startAt)} {e.title}
+            {e.seg?.index > 0 ? '↳ ' : e.allDay || e.seg ? '' : `${time(e.startAt)} `}
+            {e.title}
           </span>
         ) : (
           <>
             <span className="flex items-center gap-1.5 text-[11px] font-semibold opacity-75">
               {e.canMove ? <GripVertical className="h-3 w-3 shrink-0" aria-hidden /> : <Lock className="h-3 w-3 shrink-0" aria-hidden />}
-              {time(e.startAt)}
+              <span className="truncate">{e.seg ? `Day ${e.seg.index + 1} of ${e.seg.total}` : when(e)}</span>
               {e.subject?.code && <span className="truncate">· {e.subject.code}</span>}
             </span>
             <span className="mt-1 line-clamp-3 block text-[13px] font-bold leading-snug">{e.title}</span>
@@ -70,8 +83,8 @@ function DayDrop({ day, canDrop, onDropTo, className = '', children, label }) {
       onDrop={(ev) => {
         ev.preventDefault();
         setOver(false);
-        const id = ev.dataTransfer.getData('text/plain');
-        if (id) onDropTo(id, day);
+        const [id, offset] = ev.dataTransfer.getData('text/plain').split('|');
+        if (id) onDropTo(id, day, Number(offset) || 0);
       }}
       data-day={dayKey(day)}
       className={`${className} ${over ? 'ring-2 ring-primary ring-offset-2 ring-offset-bg' : ''}`}
@@ -205,6 +218,17 @@ function AddEventModal({ onClose, onSaved, defaultDay }) {
   );
 }
 
+/** Events grouped by the day they start (the list shows multi-day events once). */
+function byStart(events) {
+  const m = new Map();
+  for (const e of [...events].sort((a, b) => new Date(a.startAt) - new Date(b.startAt))) {
+    const k = dayKey(e.startAt);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(e);
+  }
+  return m;
+}
+
 /** Academic calendar as a week board (drag cards between days), month grid or agenda list. */
 export default function CalendarBoard() {
   const { user } = useAuth();
@@ -251,8 +275,7 @@ export default function CalendarBoard() {
   };
 
   const subjects = useMemo(() => [...new Map(events.filter((e) => e.subject).map((e) => [e.subject._id, e.subject])).values()], [events]);
-  const typeKey = (t = '') => TYPE_LEGEND.find(([name]) => new RegExp(name.split(' ')[0], 'i').test(t))?.[0] || 'Other';
-  const shown = events.filter((e) => (!subject || e.subject?._id === subject) && !hidden.has(typeKey(e.type)));
+  const shown = events.filter((e) => (!subject || e.subject?._id === subject) && !hidden.has(kindOf(e.type)));
   const days = byDay(shown);
   const byId = useMemo(() => new Map(events.map((e) => [e._id, e])), [events]);
 
@@ -308,13 +331,15 @@ export default function CalendarBoard() {
 
   const onDragStart = (ev, e) => {
     if (!e.canMove) return ev.preventDefault();
-    ev.dataTransfer.setData('text/plain', e._id);
+    // Dragging day 3 of a 5-day event onto Friday moves its first day to Wednesday.
+    ev.dataTransfer.setData('text/plain', `${e._id}|${e.seg?.index || 0}`);
     ev.dataTransfer.effectAllowed = 'move';
   };
-  const onDropTo = (id, day) => {
+  const onDropTo = (id, day, offset = 0) => {
     const e = byId.get(id);
-    if (e) move(e, moveToDay(e.startAt, day));
+    if (e) move(e, moveToDay(e.startAt, addDays(day, -offset)));
   };
+
   const cardProps = { onOpen: setDetails, onReschedule: setRescheduling, onDragStart };
 
   const today = new Date();
@@ -384,7 +409,7 @@ export default function CalendarBoard() {
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${on ? 'border-fg/15' : 'border-dashed border-fg/20 opacity-50'}`}
               >
                 <span className={`h-2.5 w-2.5 rounded-full ${tone}`} aria-hidden />
-                {name.replace(' deadline', 's')}
+                {name}
               </button>
             );
           })}
@@ -467,7 +492,7 @@ export default function CalendarBoard() {
       {view === 'list' &&
         (shown.length ? (
           <ol className="space-y-5">
-            {[...days.entries()].map(([k, list]) => (
+            {[...byStart(shown).entries()].map(([k, list]) => (
               <li key={k}>
                 <h3 className="mb-2 text-sm font-bold">{dayLabel(list[0].startAt, { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
                 <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">

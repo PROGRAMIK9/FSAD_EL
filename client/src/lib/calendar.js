@@ -51,36 +51,49 @@ export function step(view, anchor, dir) {
   return addDays(anchor, (view === 'list' ? 28 : 7) * dir);
 }
 
-/** Pastel tile per event type. */
-export function toneFor(type = '') {
-  if (/lab/i.test(type)) return 'tile-green';
-  if (/quiz/i.test(type)) return 'tile-lavender';
-  if (/assignment|deadline/i.test(type)) return 'tile-yellow';
-  if (/cie|test|exam/i.test(type)) return 'tile-lime';
-  if (/announce/i.test(type)) return 'tile-pink';
-  return 'bg-surface-2 text-fg';
-}
+/** Event kinds: legend label, tile classes and the types they cover. */
 export const TYPE_LEGEND = [
-  ['Quiz', 'tile-lavender'],
-  ['Lab', 'tile-green'],
-  ['Assignment deadline', 'tile-yellow'],
-  ['CIE', 'tile-lime'],
-  ['Announcement', 'tile-pink'],
+  ['Quiz', 'tile-lavender', /quiz/i],
+  ['Lab', 'tile-green', /lab/i],
+  ['CIE', 'tile-lime', /cie|test/i],
+  ['Exam', 'tile-pink', /exam|hall ticket/i],
+  ['Deadline', 'tile-yellow', /deadline|assignment/i],
+  ['Review', 'bg-surface text-fg ring-2 ring-inset ring-tile-green', /review|internship|counsel/i],
+  ['Other', 'bg-surface-2 text-fg', /.*/],
 ];
+/** Legend kind of a type ("Assignment deadline" → "Deadline"). */
+export const kindOf = (type = '') => TYPE_LEGEND.find(([, , re]) => re.test(type))[0];
+/** Tile classes per event type. */
+export const toneFor = (type = '') => TYPE_LEGEND.find(([, , re]) => re.test(type))[1];
+
+/** True when the event covers more than one calendar day. */
+export const isMultiDay = (e) => Boolean(e.endAt) && !sameDay(e.startAt, new Date(new Date(e.endAt).getTime() - 1));
+/** Number of calendar days an event covers (1 for single-day events). */
+export const spanDays = (e) => (isMultiDay(e) ? Math.round((startOfDay(new Date(new Date(e.endAt).getTime() - 1)) - startOfDay(e.startAt)) / DAY_MS) + 1 : 1);
 
 /** Groups events by local day key "YYYY-MM-DD". */
 export const dayKey = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 };
+/**
+ * Groups events by local day. Multi-day events appear on every day they cover (at most 62), as
+ * copies with `seg: { index, total }` (index 0 is the first day).
+ */
 export function byDay(events) {
   const m = new Map();
-  for (const e of events) {
-    const k = dayKey(e.startAt);
+  const put = (k, e) => {
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(e);
+  };
+  for (const e of events) {
+    const total = spanDays(e);
+    if (total === 1) put(dayKey(e.startAt), e);
+    else for (let i = 0; i < Math.min(total, 62); i++) put(dayKey(addDays(startOfDay(e.startAt), i)), { ...e, seg: { index: i, total } });
   }
-  for (const list of m.values()) list.sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+  // Multi-day and all-day entries first, then by time.
+  const rank = (e) => (e.seg ? 0 : e.allDay ? 1 : 2);
+  for (const list of m.values()) list.sort((a, b) => rank(a) - rank(b) || new Date(a.startAt) - new Date(b.startAt));
   return m;
 }
 
