@@ -132,3 +132,18 @@ test('students see the signature, never the drivers', async ({ page }) => {
   await expect(divider).toHaveAttribute('aria-valuenow', '40');
   await expect(page.getByRole('textbox', { name: /Python 3 code editor/ })).toBeVisible();
 });
+
+test('the seeded Two Sum sample is open for practice', async ({ page }) => {
+  await signIn(page, USERS.student);
+  await page.goto('/practice');
+  await page.getByRole('link').filter({ has: page.getByText('Two Sum', { exact: true }) }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Two Sum', exact: true })).toBeVisible();
+  await expect(page.getByText('twoSum(nums: int[], target: int) → int[]')).toBeVisible();
+  await expect(page.getByText('Example 2')).toBeVisible();
+  const list = await api(page, 'get', '/practice/questions');
+  const twoSum = list.find((p) => p.title === 'Two Sum');
+  const view = await api(page, 'get', `/practice/questions/${twoSum.id}`);
+  expect(view.code.samples).toHaveLength(2);
+  expect(view.code.hiddenCount).toBe(6);
+  expect(JSON.stringify(view)).not.toContain('@@USER_CODE@@');
+});

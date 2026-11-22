@@ -1,7 +1,8 @@
 /**
  * Loads the real MCA 3rd-semester scheme and syllabus (RVCE MCA 2024 scheme):
  * department, academic year, subjects with syllabus, the administrator, a
- * question bank per unit, Quiz 1 / Quiz 2 drafts, welcome announcements and
+ * question bank per unit, Quiz 1 / Quiz 2 drafts, a sample coding problem (Two Sum, open for
+ * practice in MCA261IA), welcome announcements and
  * tentative CIE calendar entries. Removes the old example (dummy) data.
  *
  * Idempotent: existing records are never overwritten, so edits made in the app
@@ -34,6 +35,8 @@ import {
 } from '../models/index.js';
 import { ACADEMIC_YEAR, ADMIN, CIE_THEORY, COURSES, DEPARTMENT, SEMESTER } from '../data/mca-sem3.js';
 import { QUESTIONS } from '../data/mca-sem3-questions.js';
+import { SAMPLE_CODING } from '../data/sample-coding.js';
+import { validateQuestionBatch } from '../routes/questions.js';
 import { nameFromEmail } from '../services/auth.js';
 import { enrollInDefaultSubjects } from '../services/enrolment.js';
 import { resetUnchosenElectives } from '../services/electives.js';
@@ -325,6 +328,22 @@ try {
     );
   }
 
+  // Sample coding problems (e.g. Two Sum, LeetCode style) open for practice.
+  for (const { subject: code, question } of SAMPLE_CODING) {
+    const subject = await Subject.findOne({ code, academicYear: ACADEMIC_YEAR.label }).select('_id');
+    if (!subject) continue;
+    const { questions, errors } = validateQuestionBatch([question]);
+    if (errors.length) throw new Error(`Sample coding problem is invalid: ${errors[0].error}`);
+    tally(
+      'coding',
+      await upsert(
+        Question,
+        { subject: subject._id, text: question.text },
+        { ...questions[0], subject: subject._id, creator: admin._id },
+      ),
+    );
+  }
+
   // Students enrolled in every elective by the earlier rule are asked to choose instead.
   const electivesReset = await resetUnchosenElectives();
   // Students who signed in before the subjects existed get enrolled now.
@@ -341,7 +360,7 @@ try {
   console.log(`Removed example data: ${removedText || 'none found'}`);
   console.log(`Administrator: ${admin.email}`);
   console.log(
-    `Created: ${counts.subjects || 0} subjects, ${counts.questions || 0} questions, ${counts.quizzes || 0} quiz drafts, ${counts.announcements || 0} announcements, ${counts.calendar || 0} calendar events (existing records left unchanged)`,
+    `Created: ${counts.subjects || 0} subjects, ${counts.questions || 0} questions, ${counts.coding || 0} coding problems, ${counts.quizzes || 0} quiz drafts, ${counts.announcements || 0} announcements, ${counts.calendar || 0} calendar events (existing records left unchanged)`,
   );
   console.log(
     `Checked ${enrolled} existing student(s): enrolled in the ${COURSES.filter((c) => !c.electiveGroup).length} core subjects; ${electivesReset} asked to choose their elective again`,

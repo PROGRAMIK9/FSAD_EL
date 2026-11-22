@@ -9,6 +9,15 @@ Coding questions are written in **Question bank → New question → Coding**. T
 
 Each question allows C, C++, Java and/or Python 3. Every question needs at least one **sample** test, which students can see and Run. **Hidden** tests run only on *Submit code* and in final grading; students see whether each one passed, but not its data. Marks are shared by test weight.
 
+## A ready-made example
+
+The seed (`./run.sh seed`) adds **Two Sum**, a LeetCode-style function question, to MCA261IA. It is open for practice and has 2 sample and 6 hidden tests, including one with 10,000 numbers. It is a good starting point:
+
+- **Look at it as a student:** open *Coding practice → Two Sum*.
+- **See the authoring side:** open it in the question bank to see the signature, the generated drivers and the tests.
+- **Get the file format:** export it.
+- **Change it:** the definition and its expected outputs come from `server/src/scripts/gen-sample-coding.js`. After editing that script, run `node server/src/scripts/gen-sample-coding.js` to rewrite `server/src/data/sample-coding.js`.
+
 ## HackerRank-style question (input / output)
 
 1. Choose **Input / output** and write the statement, including the input and output format and the constraints.

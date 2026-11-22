@@ -211,3 +211,41 @@ test(
     await Promise.all(jobs);
   },
 );
+
+test(
+  'the seeded Two Sum sample passes with reference solutions in every language',
+  { skip: !haveImage && 'sandbox image not built' },
+  async (t) => {
+    const { SAMPLE_CODING } = await import('../../server/src/data/sample-coding.js');
+    const q = SAMPLE_CODING.find((s) => s.question.code.signature.name === 'twoSum').question;
+    await new Promise((r) => server.listen(0, r));
+    t.after(() => server.close());
+    const url = `http://127.0.0.1:${server.address().port}`;
+    const brute =
+      'int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\n  int* r = malloc(2 * sizeof(int)); *returnSize = 2;\n  for (int i = 0; i < numsSize; i++) for (int j = i + 1; j < numsSize; j++) if (nums[i] + nums[j] == target) { r[0] = i; r[1] = j; return r; }\n  return r;\n}';
+    await Promise.all(
+      Object.entries({ ...TWO_SUM, c: brute }).map(([language, solution]) =>
+        t.test(language, async () => {
+          const res = await fetch(`${url}/execute`, {
+            method: 'POST',
+            body: JSON.stringify({
+              language,
+              source: q.code.drivers[language].replace(MARKER, solution),
+              tests: q.code.testCases.map((c) => c.input),
+              limits: {
+                cpuMs: q.code.timeLimitMs + (language === 'java' ? 2000 : language === 'python' ? 1000 : 0),
+                wallMs: 10000,
+              },
+            }),
+          });
+          const out = await res.json();
+          assert.equal(out.compileOk, true, out.compileOutput);
+          assert.deepEqual(
+            out.results.map((r) => r.stdout.trim()),
+            q.code.testCases.map((c) => c.expectedOutput),
+          );
+        }),
+      ),
+    );
+  },
+);

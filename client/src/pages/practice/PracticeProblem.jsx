@@ -28,7 +28,10 @@ export default function PracticeProblem() {
         {q.difficulty && <Badge tone={difficultyTone[q.difficulty]}>{q.difficulty}</Badge>}
         {q.topic && <span className="text-muted">{q.topic}</span>}
       </div>
-      <h2 className="text-2xl font-bold leading-tight tracking-tight">{first}</h2>
+      {/* The toolbar already has the title as the page's h1. */}
+      <p className="text-2xl font-bold leading-tight tracking-tight" aria-hidden>
+        {first}
+      </p>
       {rest.length > 0 && <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-fg">{rest.join('\n').trim()}</p>}
     </article>
   );
