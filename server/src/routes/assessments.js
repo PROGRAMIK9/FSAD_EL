@@ -127,6 +127,7 @@ async function publish(a, req) {
       endAt: a.endsAt || new Date(a.startsAt.getTime() + a.durationMinutes * 60_000),
       type: a.category,
       createdBy: req.user._id,
+      source: { kind: 'assessment', id: a._id },
     });
   await audit(req, 'ASSESSMENT_PUBLISHED', 'Assessment', a._id);
   const when = a.startsAt

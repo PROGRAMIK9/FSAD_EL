@@ -20,6 +20,7 @@ import {
   AcademicYear,
   Announcement,
   Assessment,
+  Assignment,
   Attempt,
   Department,
   Enrollment,
@@ -343,6 +344,29 @@ try {
       ),
     );
   }
+
+  // Link calendar entries made before entries recorded their source (quiz, assignment,
+  // announcement), so dragging them on the board moves the real record.
+  const linkSources = [
+    [Assessment, 'assessment', { type: { $in: ['Quiz', 'Lab'] } }],
+    [Assignment, 'assignment', { type: 'Assignment deadline' }],
+    [Announcement, 'announcement', { type: 'Announcement' }],
+  ];
+  let linked = 0;
+  for (const [Model, kind, match] of linkSources)
+    for (const e of await AcademicCalendarEvent.find({ ...match, 'source.kind': { $exists: false } }).select(
+      'subject title',
+    )) {
+      const rec = await Model.findOne({ subject: e.subject, title: e.title }).select('_id');
+      if (rec)
+        linked += (
+          await AcademicCalendarEvent.updateOne({ _id: e._id }, { $set: { source: { kind, id: rec._id } } })
+        ).modifiedCount;
+    }
+  if (linked)
+    console.log(
+      `Linked ${linked} calendar entr${linked === 1 ? 'y' : 'ies'} to their quiz, assignment or announcement`,
+    );
 
   // Students enrolled in every elective by the earlier rule are asked to choose instead.
   const electivesReset = await resetUnchosenElectives();

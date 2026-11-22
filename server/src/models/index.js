@@ -300,9 +300,16 @@ const calendarSchema = new Schema(
     endAt: Date,
     type: String,
     createdBy: Schema.Types.ObjectId,
+    /** What the entry was created for; rescheduling it moves that record too. */
+    source: {
+      _id: false,
+      kind: { type: String, enum: ['assessment', 'assignment', 'announcement'] },
+      id: Schema.Types.ObjectId,
+    },
   },
   opts,
 );
+calendarSchema.index({ 'source.kind': 1, 'source.id': 1 });
 const academicYearSchema = new Schema(
   {
     label: { type: String, required: true, unique: true },

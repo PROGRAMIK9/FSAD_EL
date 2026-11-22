@@ -33,6 +33,13 @@ import {
 import { audit } from '../utils/audit.js';
 import { parseCSV } from '../utils/csv.js';
 import { notify } from '../services/notifications.js';
+import {
+  linkedOf,
+  loadLinked,
+  moveBlocker,
+  rescheduleEvent,
+  taughtSubjectIds,
+} from '../services/calendar.js';
 import { transitionAssessment } from '../services/assessment-lifecycle.js';
 import { wrap, send, oid, httpError } from '../utils/http.js';
 import { EXPORT_FORMATS, sendTable } from '../utils/export.js';
@@ -965,6 +972,7 @@ router.post(
       endAt: a.publishedAt,
       type: 'Announcement',
       createdBy: req.user._id,
+      source: { kind: 'announcement', id: a._id },
     });
     await audit(req, 'ANNOUNCEMENT_PUBLISHED', 'Announcement', a._id);
     await notify(req.app, s.students, { title: a.title, body: a.body, href: '/announcements' });
@@ -991,13 +999,41 @@ router.get(
         ...(req.query.from ? { $gte: new Date(req.query.from) } : {}),
         ...(req.query.to ? { $lte: new Date(req.query.to) } : {}),
       };
+    const events = await AcademicCalendarEvent.find(filter)
+      .populate('subject', 'name code')
+      .sort({ startAt: 1 })
+      .limit(500)
+      .lean();
+    // Tell the board which cards can be dragged, and why not.
+    const [linked, taught] = await Promise.all([loadLinked(events), taughtSubjectIds(req.user)]);
     send(
       res,
-      await AcademicCalendarEvent.find(filter)
-        .populate('subject', 'name code')
-        .sort({ startAt: 1 })
-        .limit(500),
+      events.map((e) => {
+        const link = linkedOf(e, linked);
+        const blocker = moveBlocker(e, req.user, { taught, linked: link });
+        return {
+          ...e,
+          canMove: !blocker,
+          moveBlocker: req.user.role === 'student' ? undefined : blocker,
+          link: e.source?.kind ? { kind: e.source.kind, id: String(e.source.id), state: link?.state } : null,
+        };
+      }),
     );
+  }),
+);
+router.patch(
+  '/calendar/events/:id',
+  authenticate,
+  allow('admin', 'teacher'),
+  wrap(async (req, res) => {
+    if (!oid(req.params.id)) throw httpError(400, 'Invalid id');
+    const { startAt } = z.object({ startAt: z.coerce.date() }).parse(req.body);
+    const { event, moved } = await rescheduleEvent(req.params.id, startAt, req.user, req.app);
+    await audit(req, 'CALENDAR_EVENT_MOVED', 'AcademicCalendarEvent', event._id, {
+      startAt,
+      moved: moved?.kind,
+    });
+    send(res, { event, moved });
   }),
 );
 router.post(
@@ -1098,6 +1134,7 @@ router.post(
       endAt: assignment.dueAt,
       type: 'Assignment deadline',
       createdBy: req.user._id,
+      source: { kind: 'assignment', id: assignment._id },
     });
     await notify(req.app, subject.students, {
       title: 'New assignment',

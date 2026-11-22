@@ -17,7 +17,7 @@ Base URL: `/api`. JSON responses use `{ "ok": true, "data": ... }`; failures use
 - Rooms: `POST /rooms`, `POST /rooms/join`
 - Assignments: `GET|POST /assignments`, `POST /assignments/:id/submit` (authenticated, up to 20 MB with assignment-level MIME and size limits), `GET /assignments/:id/submissions`, `GET /assignments/submissions/:submissionId/download`, `PATCH /assignments/:id/submissions/:submissionId/evaluate`
 - Assessment templates: `GET|POST /assessment-templates`, `DELETE /assessment-templates/:id`
-- Announcements: `GET|POST /announcements`; notifications: `GET /notifications`, `PATCH /notifications/:id/read`; calendar `GET /calendar/events`.
+- Announcements: `GET|POST /announcements`; notifications: `GET /notifications`, `PATCH /notifications/:id/read`; calendar: `GET /calendar/events?from&to` (each event has `canMove`, `moveBlocker` and `link: { kind, id, state }`), `POST /calendar/events`, `PATCH /calendar/events/:id` (`{ startAt }`; teacher of the subject or admin; moves a linked quiz (only while DRAFT/SCHEDULED with no attempts) or assignment by the same amount and notifies students; announcements cannot move).
 
 Socket.IO authenticates with the session cookie. Supported controls include `room:join`, `room:start`, `room:pause`, and `room:end`; all room actions are checked against the persisted room and teacher assignment.
 
