@@ -156,7 +156,10 @@ router.get(
       language: run.language,
       status: run.status,
       queuedAhead,
-      error: run.status === 'error' ? 'The code judge could not complete this run. Check the server logs (code runner or Judge0), then try again.' : undefined,
+      error:
+        run.status === 'error'
+          ? 'The code judge could not complete this run. Check the server logs (code runner or Judge0), then try again.'
+          : undefined,
       results: publicRunResults(run.results, { showHidden: staff }),
       passedWeight: run.passedWeight,
       totalWeight: run.totalWeight,

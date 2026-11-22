@@ -66,7 +66,9 @@ export async function resolveLanguageIds() {
     }
     console.log('[judge0] language ids', languageIds);
   } catch (err) {
-    console.error(`[judge0] could not list languages from JUDGE0_URL (${err.message}); using default language ids`);
+    console.error(
+      `[judge0] could not list languages from JUDGE0_URL (${err.message}); using default language ids`,
+    );
   }
   return languageIds;
 }
