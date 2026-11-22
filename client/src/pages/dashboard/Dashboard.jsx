@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Atom, Binary, BookOpen, ClipboardCheck, ClipboardList, Cpu, Database, GraduationCap, Inbox, MessageSquareWarning, Network, NotebookPen, Plus, Radio, Sigma, Sparkles, Trophy, Users } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Atom, Binary, BookOpen, ClipboardCheck, ClipboardList, Cpu, Database, GraduationCap, Inbox, MessageSquareWarning, Network, NotebookPen, Plus, Radio, Sigma, Sparkles, Trophy, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useApi } from '../../hooks/useApi.js';
 import { useThemeColors } from '../../hooks/useThemeColors.js';
-import { Button, Card, CardHeader, DataTable, EmptyState, ExportMenu, PageHeader, Ring, ScoreRing, SectionTitle, StatCard } from '../../components/ui/index.js';
-import { QuizCard, hueFor, studentActionFor } from '../../components/domain/QuizCard.jsx';
+import { Button, Card, CardHeader, DataTable, EmptyState, ExportMenu, PageHeader, Ring, ScoreRing, SectionTitle, Shape, Squiggle, StatCard } from '../../components/ui/index.js';
+import { QuizCard, studentActionFor, tileFor } from '../../components/domain/QuizCard.jsx';
 import { ElectivePrompt } from '../../components/domain/ElectiveChooser.jsx';
 import { AssessmentList } from '../../components/domain/AssessmentList.jsx';
 import { SubjectCard } from '../../components/domain/SubjectCard.jsx';
@@ -111,29 +111,38 @@ function SubjectTile({ s, quizzes }) {
   const Icon = subjectIcon(s.name);
   const open = quizzes.filter((a) => ['AVAILABLE', 'LIVE', 'PAUSED'].includes(a.state)).length;
   return (
-    <article className={`card-hero ${hueFor(s.code)} flex min-h-[196px] flex-col p-5 pb-16`}>
-      <Icon className="pointer-events-none absolute right-4 top-4 -z-10 h-16 w-16 text-white/25" strokeWidth={1.25} aria-hidden />
-      <span className="chip chip-light self-start">{s.code}</span>
-      <h3 className="mt-auto pt-6 font-display text-[15px] font-bold uppercase leading-snug tracking-wide">{s.name}</h3>
-      <p className="mt-1 text-xs text-white/85">
-        {quizzes.length} quiz{quizzes.length === 1 ? '' : 'zes'}
-        {open ? ` · ${open} open now` : ''}
-      </p>
-      <Button variant="ink" className="cta-corner" to={`/subjects/${s._id}`}>
-        Open <ArrowRight />
-      </Button>
-    </article>
+    <Link to={`/subjects/${s._id}`} className={`tile ${tileFor(s.code)} group flex min-h-[196px] flex-col transition hover:-translate-y-1`}>
+      <Icon className="pointer-events-none absolute right-4 top-4 -z-10 h-14 w-14 text-white/60" strokeWidth={1.5} aria-hidden />
+      <span className="tile-chip self-start">{s.code}</span>
+      <h3 className="mt-auto pt-6 text-[17px] font-bold leading-snug">
+        {s.name.split(' ').slice(0, -1).join(' ')} <span className="accent text-[19px]">{s.name.split(' ').slice(-1)}</span>
+      </h3>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <p className="text-xs font-medium text-tile-ink/70">
+          {quizzes.length} quiz{quizzes.length === 1 ? '' : 'zes'}
+          {open ? ` · ${open} open now` : ''}
+        </p>
+        <span className="tile-arrow group-hover:bg-tile-ink group-hover:text-white" aria-hidden>
+          <ArrowUpRight className="h-4 w-4" />
+        </span>
+      </div>
+      <span className="sr-only">Open {s.name}</span>
+    </Link>
   );
 }
 
 function CaughtUpHero() {
   return (
-    <article className="card-hero flex min-h-[240px] flex-col justify-center p-7 pb-16">
-      <Sparkles className="pointer-events-none absolute right-8 top-8 -z-10 h-24 w-24 text-white/20" strokeWidth={1.25} aria-hidden />
-      <span className="chip chip-light self-start">All caught up</span>
-      <h2 className="mt-3 max-w-sm text-2xl font-bold leading-tight">No quiz is open right now</h2>
-      <p className="mt-1 max-w-sm text-sm text-white/85">You will get a notification the moment your teacher opens one.</p>
-      <Button variant="ink" className="cta-corner" to="/assessments">
+    <article className="tile tile-lavender flex min-h-[240px] flex-col justify-center !p-7">
+      <Shape shape="flower" className="absolute -right-6 -top-8 -z-10 h-40 w-40 rotate-12 text-tile-lime" />
+      <Shape shape="heart" className="absolute bottom-6 right-40 -z-10 h-8 w-8 -rotate-12 text-tile-pink" />
+      <Squiggle className="absolute inset-x-0 bottom-10 -z-10 h-24 w-full text-white/70" />
+      <span className="tile-chip self-start">All caught up</span>
+      <h2 className="mt-3 max-w-sm text-[1.9rem] font-bold leading-tight tracking-tight">
+        No quiz is <span className="accent">open right now</span>
+      </h2>
+      <p className="mt-1 max-w-sm text-sm text-tile-ink/75">You will get a notification the moment your teacher opens one.</p>
+      <Button variant="primary" className="mt-5 self-start !bg-tile-ink !text-white" to="/assessments">
         Browse quizzes <ArrowRight />
       </Button>
     </article>

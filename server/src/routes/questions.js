@@ -9,9 +9,41 @@ import { LANGUAGE_KEYS } from '../services/judge0.js';
 
 const router = Router();
 
-export const MAX_TEST_CASES = 30;
-const IO_LIMIT = 64 * 1024;
+export const MAX_TEST_CASES = 50;
+const IO_LIMIT = 1024 * 1024;
+/** Total test input + expected output per question. */
+export const MAX_TEST_BYTES = 8 * 1024 * 1024;
+export const CODE_MARKER = '@@USER_CODE@@';
+const PARAM_TYPES = [
+  'int',
+  'long',
+  'double',
+  'bool',
+  'string',
+  'int[]',
+  'long[]',
+  'double[]',
+  'string[]',
+  'int[][]',
+];
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const codeFields = z.object({
+  mode: z.enum(['stdio', 'function']).default('stdio'),
+  signature: z
+    .object({
+      name: z.string().regex(IDENT, 'Function name must be an identifier'),
+      params: z
+        .array(
+          z.object({
+            name: z.string().regex(IDENT, 'Parameter names must be identifiers'),
+            type: z.enum(PARAM_TYPES),
+          }),
+        )
+        .max(8),
+      returns: z.enum([...PARAM_TYPES, 'void']),
+    })
+    .optional(),
+  drivers: z.record(z.enum(LANGUAGE_KEYS), z.string().max(64_000)).default({}),
   languages: z.array(z.enum(LANGUAGE_KEYS)).min(1, 'Allow at least one language'),
   starter: z.record(z.enum(LANGUAGE_KEYS), z.string().max(16_000)).default({}),
   timeLimitMs: z.coerce.number().int().min(500).max(10_000).default(2000),
@@ -58,6 +90,25 @@ function checkQuestion(q) {
     if (!q.code) throw httpError(400, 'Add the coding details (languages and test cases)');
     if (!q.code.testCases.some((t) => !t.hidden))
       throw httpError(400, 'Keep at least one test case visible as a sample');
+    const bytes = q.code.testCases.reduce(
+      (n, t) => n + (t.input?.length || 0) + (t.expectedOutput?.length || 0),
+      0,
+    );
+    if (bytes > MAX_TEST_BYTES) throw httpError(400, 'Test cases are larger than 8 MB in total');
+    if (q.code.mode === 'function') {
+      if (!q.code.signature?.name) throw httpError(400, 'Function questions need a function signature');
+      const drivers =
+        q.code.drivers instanceof Map ? Object.fromEntries(q.code.drivers) : q.code.drivers || {};
+      const missing = q.code.languages.filter((l) => !String(drivers[l] || '').includes(CODE_MARKER));
+      if (missing.length)
+        throw httpError(
+          400,
+          `Add a driver containing ${CODE_MARKER} for: ${missing.join(', ')} (or generate the drivers)`,
+        );
+    } else {
+      q.code.drivers = {};
+      q.code.signature = undefined;
+    }
     q.options = [];
     q.correctAnswer = undefined;
     return;
@@ -160,6 +211,77 @@ router.get(
         locked: (byId.get(String(q._id))?.locked || 0) > 0,
       })),
     );
+  }),
+);
+
+export const EXPORT_FORMAT = 'rvce-hub/questions@1';
+const EXPORT_FIELDS = [
+  'type',
+  'text',
+  'marks',
+  'difficulty',
+  'topic',
+  'explanation',
+  'options',
+  'correctAnswer',
+  'code',
+];
+
+/** A question as stored in an export file: no ids, subject or authorship. */
+export function exportQuestion(q) {
+  const out = {};
+  for (const k of EXPORT_FIELDS) if (q[k] !== undefined && q[k] !== null) out[k] = q[k];
+  if (out.options) out.options = out.options.map(({ key, text }) => ({ key, text }));
+  if (!out.options?.length) delete out.options;
+  if (out.code) {
+    const c = out.code;
+    const map = (m) => (m instanceof Map ? Object.fromEntries(m) : m || {});
+    out.code = {
+      mode: c.mode || 'stdio',
+      ...(c.mode === 'function' && c.signature ? { signature: c.signature, drivers: map(c.drivers) } : {}),
+      languages: c.languages,
+      starter: map(c.starter),
+      timeLimitMs: c.timeLimitMs,
+      memoryLimitMb: c.memoryLimitMb,
+      comparison: c.comparison,
+      practice: Boolean(c.practice),
+      testCases: (c.testCases || []).map(({ input, expectedOutput, weight, hidden }) => ({
+        input,
+        expectedOutput,
+        weight,
+        hidden,
+      })),
+    };
+  }
+  return out;
+}
+
+/** Questions as a portable JSON file, for another subject or another installation. */
+router.get(
+  '/questions/export',
+  authenticate,
+  allow('teacher', 'admin'),
+  wrap(async (req, res) => {
+    const filter = {};
+    const mine = await teachingSubjectIds(req.user);
+    if (oid(req.query.subject)) {
+      if (mine && !mine.some((id) => id.equals(req.query.subject)))
+        throw httpError(403, 'Not allocated to subject');
+      filter.subject = req.query.subject;
+    } else if (mine) filter.subject = { $in: mine };
+    const ids = String(req.query.ids || '')
+      .split(',')
+      .filter(oid);
+    if (ids.length) filter._id = { $in: ids };
+    else filter.archivedAt = null;
+    const questions = await Question.find(filter).sort({ createdAt: 1 }).limit(500).lean();
+    if (ids.length && questions.length !== ids.length) throw httpError(404, 'Some questions were not found');
+    await audit(req, 'QUESTIONS_EXPORTED', 'Question', undefined, { count: questions.length });
+    send(res, {
+      format: EXPORT_FORMAT,
+      exportedAt: new Date().toISOString(),
+      questions: questions.map(exportQuestion),
+    });
   }),
 );
 

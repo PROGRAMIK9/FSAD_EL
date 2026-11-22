@@ -24,7 +24,8 @@ const env = {
   MONGODB_DB: dbName,
   NODE_ENV: 'e2e',
   E2E: 'true',
-  JUDGE_MODE: 'fake',
+  // The fake judge, unless RUNNER_URL points at a real code runner.
+  JUDGE_MODE: process.env.RUNNER_URL ? 'runner' : 'fake',
   DEV_LOGIN: 'true',
   SERVE_CLIENT: 'true',
   JWT_SECRET: process.env.JWT_SECRET || 'e2e-only-secret-not-for-production',

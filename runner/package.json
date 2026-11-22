@@ -1,0 +1,12 @@
+{
+  "name": "@rvce-hub/runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sandboxed code runner (Docker, cgroup v2) for C, C++, Java and Python",
+  "scripts": {
+    "start": "node server.js",
+    "build:sandbox": "docker build -t fsad-sandbox:latest sandbox",
+    "test": "node --test test/*.test.js"
+  }
+}

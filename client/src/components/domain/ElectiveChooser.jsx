@@ -102,7 +102,7 @@ export function ElectivePrompt({ onChosen, compact = false }) {
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/20">
             <Sparkles className="h-6 w-6" />
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[14rem] flex-1">
             <p className="font-display text-lg font-bold">Choose your Group {g.group} elective</p>
             <p className="text-sm text-white/85">{g.options.map((o) => o.name).join(' · ')}</p>
           </div>

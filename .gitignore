@@ -1,19 +1,38 @@
+# ── Dependencies ────────────────────────────────────────────────
 node_modules/
+
+# ── Environment and secrets (keep .env.example) ─────────────────
 .env
 .env.*
 !.env.example
+runner/judge0/judge0.conf
+*.pem
+*.key
+
+# ── Build output ────────────────────────────────────────────────
 dist/
+build/
 coverage/
-.DS_Store
+*.tsbuildinfo
+client/node_modules/.vite/
+
+# ── Local runtime data ──────────────────────────────────────────
+# MongoDB, code runner token and logs started by run.sh
+.data/
+# Assignment uploads (directories are kept with .gitkeep)
 uploads/*
+!uploads/.gitkeep
 server/storage/*
 !server/storage/.gitkeep
-!uploads/.gitkeep
 
-# Local runner data (run.sh)
-.data/
+# ── Tests ───────────────────────────────────────────────────────
+e2e/test-results/
+e2e/playwright-report/
+playwright/.cache/
+loadtest/*.json
+loadtest/*.html
 
-# LaTeX build artefacts
+# ── LaTeX build artefacts (docs/report) ─────────────────────────
 docs/report/*.aux
 docs/report/*.log
 docs/report/*.out
@@ -23,7 +42,16 @@ docs/report/*.lot
 docs/report/*.fls
 docs/report/*.fdb_latexmk
 docs/report/*.synctex.gz
+docs/report/*.pdf
 
-# Playwright
-e2e/test-results/
-e2e/playwright-report/
+# ── Logs ────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Editors and OS ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

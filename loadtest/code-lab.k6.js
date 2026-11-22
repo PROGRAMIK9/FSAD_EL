@@ -1,5 +1,5 @@
 /**
- * 250 students writing a coding lab at once, against staging with a real Judge0.
+ * 250 students writing a coding lab at once, against staging with the real code runner (runner/).
  *
  *   LOADTEST=true MONGODB_URI=... node server/src/scripts/loadtest-fixtures.js 250
  *   k6 run -e BASE_URL=https://staging.example.com -e ASSESSMENT_ID=<id> loadtest/code-lab.k6.js

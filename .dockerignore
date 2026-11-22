@@ -1,14 +1,20 @@
-node_modules
+# Only client/ and server/ go into the app image (see Dockerfile).
 **/node_modules
 client/dist
 .git
+.github
+.vscode
+.idea
 .env
 .env.*
 .data
-docs/report
-scheme-syllabus
+docs
+e2e
+loadtest
+runner
 coverage
-e2e/test-results
-e2e/playwright-report
 uploads
 server/storage
+*.md
+!client/**/*.md
+!server/**/*.md

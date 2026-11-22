@@ -13,6 +13,7 @@ import {
 import { buildItems, hashSource, scoreResults } from '../src/services/code-runner.js';
 import { evaluateObjective, publicRunResults, reviewAnswers } from '../src/services/grading.js';
 import { studentCodeView } from '../src/routes/code.js';
+import { runSandbox, runnerLimits } from '../src/services/sandbox.js';
 import { validateQuestionBatch } from '../src/routes/questions.js';
 
 const question = {
@@ -255,4 +256,186 @@ test('the Judge0 client batches, base64-encodes and authenticates', async (t) =>
   ]);
   const posts = seen.filter((s) => s.method === 'POST').map((s) => JSON.parse(s.body).submissions.length);
   assert.deepEqual(posts, [1, 1]);
+});
+
+test('the runner client sends one job per run and maps results back', async (t) => {
+  const jobs = [];
+  let reply = {};
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      jobs.push({ token: req.headers['x-auth-token'], job: JSON.parse(body) });
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(reply));
+    });
+  });
+  await new Promise((r) => server.listen(0, r));
+  t.after(() => server.close());
+  const env = { ...process.env };
+  t.after(() => (process.env = env));
+  process.env.RUNNER_URL = `http://127.0.0.1:${server.address().port}`;
+  process.env.RUNNER_AUTH_TOKEN = 'tok';
+
+  const items = buildItems({ kind: 'run', language: 'java', source: 'class Main{}', stdin: 'x' }, question);
+  reply = {
+    compileOk: true,
+    compileOutput: '',
+    results: [
+      { status: 'OK', stdout: '3\n', stderr: '', timeMs: 40, memoryKb: 30000 },
+      { status: 'TLE', stdout: '', stderr: '', timeMs: 3000, memoryKb: 30000 },
+    ],
+  };
+  const out = await runSandbox(items);
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].token, 'tok');
+  assert.deepEqual(jobs[0].job.tests, ['1 2', 'x']);
+  assert.deepEqual(jobs[0].job.limits, runnerLimits(limitsFor('java', question.code)));
+  assert.equal(jobs[0].job.limits.cpuMs, 3000, 'Java gets extra CPU time');
+  assert.equal(out[0].status, 'OK');
+  assert.equal(out[1].status, 'TLE');
+  const scored = scoreResults(items, out, question);
+  assert.equal(scored.results[0].status, 'AC');
+
+  reply = { compileOk: false, compileOutput: 'Main.java:1: error', results: [] };
+  const ce = await runSandbox(items);
+  assert.deepEqual(
+    ce.map((o) => o.status),
+    ['CE', 'CE'],
+  );
+  assert.match(ce[0].compileOutput, /error/);
+});
+
+test('function questions run the student code inside the hidden driver', async () => {
+  const { composeSource, CODE_MARKER } = await import('../src/services/code-runner.js');
+  const fq = {
+    marks: 2,
+    code: {
+      mode: 'function',
+      drivers: new Map([['python', `import sys\n${CODE_MARKER}\nprint(Solution().f())`]]),
+      testCases: [{ input: '', expectedOutput: '1', hidden: false }],
+    },
+  };
+  const student = 'class Solution:\n    def f(self):\n        return "$&"\n';
+  assert.equal(composeSource(fq, 'python', student), `import sys\n${student}\nprint(Solution().f())`);
+  assert.equal(composeSource(fq, 'c', 'int main(){}'), 'int main(){}', 'no driver: unchanged');
+  assert.equal(composeSource(question, 'python', 'x'), 'x', 'stdio questions are unchanged');
+  const items = buildItems({ kind: 'submit', language: 'python', source: student }, fq);
+  assert.ok(items[0].source.startsWith('import sys'));
+  // Students never receive drivers.
+  const view = studentCodeView({
+    ...fq.code,
+    languages: ['python'],
+    signature: { name: 'f', params: [], returns: 'string' },
+  });
+  assert.equal(view.mode, 'function');
+  assert.equal(view.signature.name, 'f');
+  assert.ok(!JSON.stringify(view).includes(CODE_MARKER));
+});
+
+test('function questions need a signature and a driver per language; size limits apply', async () => {
+  const { MAX_TEST_BYTES } = await import('../src/routes/questions.js');
+  const base = {
+    type: 'code',
+    text: 'Two sum',
+    marks: 5,
+    code: {
+      mode: 'function',
+      languages: ['python', 'cpp'],
+      signature: {
+        name: 'twoSum',
+        params: [
+          { name: 'nums', type: 'int[]' },
+          { name: 'target', type: 'int' },
+        ],
+        returns: 'int[]',
+      },
+      drivers: { python: 'x @@USER_CODE@@ y', cpp: 'a @@USER_CODE@@ b' },
+      testCases: [{ input: '[2,7]\n9', expectedOutput: '[0,1]' }],
+    },
+  };
+  assert.deepEqual(validateQuestionBatch([base]).errors, []);
+  const { errors } = validateQuestionBatch([
+    { ...base, code: { ...base.code, drivers: { python: 'no marker' } } },
+    { ...base, code: { ...base.code, signature: undefined } },
+    {
+      ...base,
+      code: {
+        ...base.code,
+        signature: { ...base.code.signature, params: [{ name: 'bad name', type: 'int' }] },
+      },
+    },
+    {
+      ...base,
+      code: {
+        ...base.code,
+        testCases: Array.from({ length: 51 }, () => ({ input: '', expectedOutput: '1' })),
+      },
+    },
+    {
+      ...base,
+      code: {
+        ...base.code,
+        testCases: Array.from({ length: 10 }, () => ({
+          input: 'x'.repeat(1000 * 1024),
+          expectedOutput: '1',
+        })),
+      },
+    },
+  ]);
+  assert.deepEqual(
+    errors.map((e) => e.index),
+    [0, 1, 2, 3, 4],
+  );
+  assert.match(errors[0].error, /cpp/);
+  assert.match(errors[4].error, /8 MB/);
+  assert.equal(MAX_TEST_BYTES, 8 * 1024 * 1024);
+  // stdio questions drop driver fields.
+  const stdio = validateQuestionBatch([{ ...base, code: { ...base.code, mode: 'stdio' } }]).questions[0];
+  assert.deepEqual(stdio.code.drivers, {});
+  assert.equal(stdio.code.signature, undefined);
+});
+
+test('exported questions import again unchanged', async () => {
+  const { exportQuestion } = await import('../src/routes/questions.js');
+  const stored = {
+    _id: 'abc',
+    subject: 's',
+    creator: 'u',
+    type: 'code',
+    text: 'Two sum',
+    marks: 5,
+    difficulty: 'easy',
+    code: {
+      mode: 'function',
+      languages: ['python'],
+      starter: new Map([['python', 'class Solution: ...']]),
+      drivers: new Map([['python', 'x @@USER_CODE@@ y']]),
+      signature: { name: 'twoSum', params: [{ name: 'nums', type: 'int[]' }], returns: 'int' },
+      timeLimitMs: 2000,
+      memoryLimitMb: 256,
+      comparison: 'trim',
+      practice: true,
+      testCases: [{ input: '[1]', expectedOutput: '1', weight: 2, hidden: false, _id: 'x' }],
+    },
+  };
+  const out = exportQuestion(stored);
+  assert.equal(out._id, undefined);
+  assert.equal(out.subject, undefined);
+  assert.deepEqual(out.code.drivers, { python: 'x @@USER_CODE@@ y' });
+  assert.deepEqual(out.code.testCases[0], { input: '[1]', expectedOutput: '1', weight: 2, hidden: false });
+  const back = validateQuestionBatch([JSON.parse(JSON.stringify(out))]);
+  assert.deepEqual(back.errors, []);
+  assert.equal(back.questions[0].code.signature.name, 'twoSum');
+  const mcq = exportQuestion({
+    type: 'single',
+    text: 'Pick',
+    marks: 1,
+    options: [
+      { key: 'A', text: 'x', _id: 1 },
+      { key: 'B', text: 'y' },
+    ],
+    correctAnswer: 'B',
+  });
+  assert.deepEqual(validateQuestionBatch([mcq]).errors, []);
 });

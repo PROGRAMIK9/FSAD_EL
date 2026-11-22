@@ -3,6 +3,7 @@ import { CodeRun, Question } from '../models/index.js';
 import { clip, fakeExecute, getBatch, judgeMode, limitsFor, sameOutput, submitBatch } from './judge0.js';
 import { toStudent } from './realtime.js';
 import { completeCodeGrading } from './attempts.js';
+import { runSandbox } from './sandbox.js';
 
 /**
  * Code execution queue. Runs are CodeRun documents (status queued → running → done | error),
@@ -30,11 +31,26 @@ export async function enqueueRun(fields) {
   return run;
 }
 
+export const CODE_MARKER = '@@USER_CODE@@';
+
+/**
+ * The program that actually runs. For function (LeetCode-style) questions the student's code is
+ * placed into the question's hidden driver for that language; otherwise it runs as written.
+ */
+export function composeSource(question, language, source) {
+  const code = question?.code;
+  if (code?.mode !== 'function') return source;
+  const driver = code.drivers instanceof Map ? code.drivers.get(language) : code.drivers?.[language];
+  if (!driver || !driver.includes(CODE_MARKER)) return source;
+  // A function replacer keeps `$&`-style sequences in student code literal.
+  return driver.replace(CODE_MARKER, () => source);
+}
+
 /** The executions a run needs: test cases picked by kind, plus custom stdin. */
 export function buildItems(run, question) {
   const code = question?.code || {};
   const limits = limitsFor(run.language, code);
-  const base = { language: run.language, source: run.source, limits };
+  const base = { language: run.language, source: composeSource(question, run.language, run.source), limits };
   const tests = (code.testCases || []).map((t, index) => ({ ...(t.toObject?.() ?? t), index }));
   const chosen = run.kind === 'run' ? tests.filter((t) => !t.hidden) : run.kind === 'scratch' ? [] : tests;
   const items = chosen.map((t) => ({
@@ -82,6 +98,7 @@ export function scoreResults(items, outputs, question) {
 
 async function execute(items) {
   if (!items.length) return [];
+  if (judgeMode() === 'runner') return runSandbox(items);
   if (judgeMode() === 'fake') {
     // JUDGE_FAKE_DELAY_MS imitates Judge0's compile + run time in load tests.
     await sleep(Number(process.env.JUDGE_FAKE_DELAY_MS) || 30);
@@ -102,7 +119,9 @@ async function execute(items) {
 async function processRun(run) {
   const question = run.question ? await Question.findById(run.question) : null;
   const items = buildItems(run, question);
-  inflight += Math.max(1, items.length);
+  // The runner takes a whole run per request; Judge0 takes one execution per item.
+  const weight = judgeMode() === 'judge0' ? Math.max(1, items.length) : 1;
+  inflight += weight;
   active.add(String(run._id));
   try {
     const outputs = await execute(items);
@@ -122,7 +141,7 @@ async function processRun(run) {
     );
     if (retry) return;
   } finally {
-    inflight -= Math.max(1, items.length);
+    inflight -= weight;
     active.delete(String(run._id));
   }
   await announce(run._id);

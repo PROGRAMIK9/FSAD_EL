@@ -32,6 +32,7 @@ export const VERDICTS = {
   WA: { label: 'Wrong answer', tone: 'danger' },
   TLE: { label: 'Time limit exceeded', tone: 'warn' },
   MLE: { label: 'Memory limit exceeded', tone: 'warn' },
+  OLE: { label: 'Output limit exceeded', tone: 'warn' },
   CE: { label: 'Compilation error', tone: 'danger' },
   RE: { label: 'Runtime error', tone: 'danger' },
   IE: { label: 'Judge error', tone: 'neutral' },

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Archive, ArchiveRestore, Copy, FileStack, Lock, Pencil, Plus, ScanText, Search } from 'lucide-react';
+import { Archive, ArchiveRestore, Copy, Download, FileJson, FileStack, Lock, Pencil, Plus, ScanText, Search } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { useApi } from '../../hooks/useApi.js';
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton, Tabs, Toolbar } from '../../components/ui/index.js';
 import { QuestionPreview } from '../../components/domain/QuestionPreview.jsx';
 import { QuestionEditor } from './QuestionEditor.jsx';
 import { ImportPaperModal } from './ImportPaperModal.jsx';
+import { ImportQuestionsModal } from './ImportQuestionsModal.jsx';
+import { downloadJson, exportFileName } from '../../lib/question-io.js';
 
 export default function QuestionBank() {
   const { data: subjects } = useApi('/subjects', { initial: [] });
@@ -18,6 +20,8 @@ export default function QuestionBank() {
   const [view, setView] = useState('active');
   const [editor, setEditor] = useState(null); // null | { question?, duplicate? }
   const [importing, setImporting] = useState(false);
+  const [importingJson, setImportingJson] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setQuery(search.trim()), 250);
@@ -39,6 +43,21 @@ export default function QuestionBank() {
     }
   };
 
+  /** Downloads the given questions (with hidden tests and drivers) as a portable JSON file. */
+  const exportQuestions = async (list, label) => {
+    if (!list.length) return;
+    setExporting(true);
+    try {
+      const file = await api.get(`/questions/export?ids=${list.map((q) => q._id).join(',')}`);
+      downloadJson(exportFileName(label), file);
+      toast.success(`${file.questions.length} question${file.questions.length === 1 ? '' : 's'} exported`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const editorQuestion = editor?.duplicate ? { ...editor.question, _id: undefined, locked: false } : editor?.question;
 
   return (
@@ -51,7 +70,13 @@ export default function QuestionBank() {
             <Button icon={ScanText} onClick={() => setImporting(true)} disabled={!subjects.length}>
               Import paper
             </Button>
-            <Button variant="primary" icon={Plus} onClick={() => setEditor({})}>
+            <Button icon={FileJson} onClick={() => setImportingJson(true)} disabled={!subjects.length}>
+              Import JSON
+            </Button>
+            <Button icon={Download} loading={exporting} onClick={() => exportQuestions(questions, bySubject.get(subject)?.code || 'questions')} disabled={!questions.length}>
+              Export {questions.length || ''}
+            </Button>
+            <Button variant="primary" icon={Plus} onClick={() => setEditor({})} disabled={!subjects.length}>
               Create program
             </Button>
           </>
@@ -118,6 +143,7 @@ export default function QuestionBank() {
                       <>
                         <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditor({ question: q })} disabled={q.locked} aria-label="Edit" title={q.locked ? 'Locked: used in a published quiz' : 'Edit'} />
                         <Button size="sm" variant="ghost" icon={Copy} onClick={() => setEditor({ question: q, duplicate: true })} aria-label="Duplicate" title="Duplicate" />
+                        <Button size="sm" variant="ghost" icon={Download} onClick={() => exportQuestions([q], `${bySubject.get(String(q.subject))?.code || 'question'}-${q.type}`)} aria-label="Export" title="Export as JSON" />
                         <Button size="sm" variant="ghost" icon={Archive} onClick={() => archive(q)} aria-label="Archive" title="Archive" />
                       </>
                     ) : (
@@ -146,6 +172,17 @@ export default function QuestionBank() {
           />
         )}
       </Card>
+      {importingJson && (
+        <ImportQuestionsModal
+          subjects={subjects}
+          defaultSubject={subject}
+          onClose={() => setImportingJson(false)}
+          onImported={() => {
+            setImportingJson(false);
+            reload();
+          }}
+        />
+      )}
       {importing && (
         <ImportPaperModal
           subjects={subjects}

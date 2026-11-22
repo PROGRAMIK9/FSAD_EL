@@ -83,6 +83,16 @@ const questionSchema = new Schema(
       ],
       /** Listed in the practice area for enrolled students. */
       practice: { type: Boolean, default: false },
+      /** stdio: the program reads stdin (HackerRank); function: the student writes one function (LeetCode). */
+      mode: { type: String, enum: ['stdio', 'function'], default: 'stdio' },
+      signature: {
+        _id: false,
+        name: String,
+        params: [{ _id: false, name: String, type: { type: String } }],
+        returns: String,
+      },
+      /** Function mode: full program per language with @@USER_CODE@@ where the student's code goes. */
+      drivers: { type: Map, of: String },
     },
   },
   opts,
@@ -289,10 +299,19 @@ const calendarSchema = new Schema(
     startAt: Date,
     endAt: Date,
     type: String,
+    /** Whole-day entry (startAt is the first day's midnight IST, endAt the last day's 23:59). */
+    allDay: { type: Boolean, default: false },
     createdBy: Schema.Types.ObjectId,
+    /** What the entry was created for; rescheduling it moves that record too. */
+    source: {
+      _id: false,
+      kind: { type: String, enum: ['assessment', 'assignment', 'announcement'] },
+      id: Schema.Types.ObjectId,
+    },
   },
   opts,
 );
+calendarSchema.index({ 'source.kind': 1, 'source.id': 1 });
 const academicYearSchema = new Schema(
   {
     label: { type: String, required: true, unique: true },

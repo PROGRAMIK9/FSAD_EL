@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Award, BarChart3, ClipboardList, Trophy } from 'lucide-react';
 import { useApi } from '../../hooks/useApi.js';
 import { Button, Card, EmptyState, ExportMenu, PageHeader, ScoreRing, SectionTitle, Skeleton, StatCard } from '../../components/ui/index.js';
-import { hueFor } from '../../components/domain/QuizCard.jsx';
+import { tileFor } from '../../components/domain/QuizCard.jsx';
 import { fmtDate } from '../../lib/format.js';
 
 const pct = (g) => (g.maxMarks ? (g.rawMarks / g.maxMarks) * 100 : 0);
@@ -12,7 +12,7 @@ function GradeCard({ g }) {
   const a = g.assessment || {};
   return (
     <Link to={`/results/${a._id}`} className="card group flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:shadow-lift sm:p-5">
-      <span className={`card-hero ${hueFor(a.subject?.code)} grid h-12 w-12 shrink-0 place-items-center !rounded-2xl font-display text-[10.5px] font-bold !shadow-none`}>{a.subject?.code}</span>
+      <span className={`tile ${tileFor(a.subject?.code)} grid h-12 w-12 shrink-0 place-items-center !rounded-2xl !p-0 text-[10px] font-bold`}>{a.subject?.code}</span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-display font-semibold text-fg">{a.title || 'Quiz'}</p>
         <p className="truncate text-xs text-muted">

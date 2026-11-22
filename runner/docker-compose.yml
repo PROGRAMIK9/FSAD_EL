@@ -1,0 +1,27 @@
+# Code runner: `docker compose up -d --build` (from this folder).
+# Builds the sandbox image (compilers) and starts the runner on port 2359.
+services:
+  sandbox:
+    # Only builds and tags the image the runner starts per submission.
+    build:
+      context: ./sandbox
+      network: host
+    image: fsad-sandbox:latest
+    entrypoint: ["true"]
+    restart: "no"
+
+  runner:
+    build: .
+    depends_on:
+      sandbox:
+        condition: service_completed_successfully
+    ports:
+      - "2359:2359"
+    environment:
+      RUNNER_AUTH_TOKEN: ${RUNNER_AUTH_TOKEN:?set RUNNER_AUTH_TOKEN}
+      RUNNER_CONCURRENCY: ${RUNNER_CONCURRENCY:-}
+      RUNNER_DOCKER_RUNTIME: ${RUNNER_DOCKER_RUNTIME:-}
+      SANDBOX_IMAGE: fsad-sandbox:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always

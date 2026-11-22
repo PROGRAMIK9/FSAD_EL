@@ -71,5 +71,7 @@ export const titleFor = (pathname) => {
   if (pathname.startsWith('/subjects/')) return 'Subject';
   if (pathname.startsWith('/assessments/')) return 'Assessments';
   if (pathname.startsWith('/rooms/')) return 'Exam room';
+  if (pathname === '/practice/playground') return 'Playground';
+  if (pathname.startsWith('/practice/')) return 'Coding practice';
   return 'Academic Hub';
 };

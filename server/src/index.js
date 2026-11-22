@@ -53,6 +53,8 @@ app.use(
   }),
 );
 app.use(cors({ origin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
+// Questions carry test data (up to 8 MB per question; bulk imports hold several).
+app.use('/api/questions', express.json({ limit: '24mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use('/api', apiLimiter);

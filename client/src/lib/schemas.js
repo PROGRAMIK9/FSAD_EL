@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MARKER, checkSignature } from './function-drivers.js';
 
 export const QUIZ_MARKS = 10;
 export const OPTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -28,16 +29,19 @@ export const questionFormSchema = z
         memoryLimitMb: z.coerce.number({ invalid_type_error: 'Enter a memory limit' }).int().min(32, 'At least 32 MB').max(512, 'At most 512 MB'),
         comparison: z.enum(['exact', 'trim', 'tokens']),
         practice: z.boolean(),
+        mode: z.enum(['stdio', 'function']),
+        signature: z.object({ name: z.string(), params: z.array(z.object({ name: z.string(), type: z.string() })), returns: z.string() }),
+        drivers: z.record(z.string()),
         testCases: z
           .array(
             z.object({
-              input: z.string().max(65536, 'Too long'),
-              expectedOutput: z.string().max(65536, 'Too long'),
+              input: z.string().max(1048576, 'Larger than 1 MB'),
+              expectedOutput: z.string().max(1048576, 'Larger than 1 MB'),
               weight: z.coerce.number({ invalid_type_error: 'Weight' }).positive('Must be > 0').max(100),
               hidden: z.boolean(),
             }),
           )
-          .max(30, 'At most 30 test cases'),
+          .max(50, 'At most 50 test cases'),
       })
       .optional(),
   })
@@ -48,6 +52,12 @@ export const questionFormSchema = z
       if (!c?.languages?.length) ctx.addIssue({ code: 'custom', path: ['code', 'languages'], message: 'Allow at least one language' });
       if (!c?.testCases?.length) ctx.addIssue({ code: 'custom', path: ['code', 'testCases'], message: 'Add at least one test case' });
       else if (!c.testCases.some((t) => !t.hidden)) ctx.addIssue({ code: 'custom', path: ['code', 'testCases'], message: 'Keep at least one test visible as a sample' });
+      if (c?.mode === 'function') {
+        const problems = checkSignature(c.signature);
+        if (problems.length) ctx.addIssue({ code: 'custom', path: ['code', 'signature'], message: problems[0] });
+        const missing = (c.languages || []).filter((l) => !String(c.drivers?.[l] || '').includes(MARKER));
+        if (!problems.length && missing.length) ctx.addIssue({ code: 'custom', path: ['code', 'drivers'], message: `Generate the drivers (missing for ${missing.join(', ')})` });
+      }
       c?.testCases?.forEach((t, i) => {
         if (t.expectedOutput === '') ctx.addIssue({ code: 'custom', path: ['code', 'testCases', i, 'expectedOutput'], message: 'Expected output is required' });
       });
@@ -80,6 +90,13 @@ export function toQuestionPayload(v) {
         memoryLimitMb: Number(c.memoryLimitMb),
         comparison: c.comparison,
         practice: Boolean(c.practice),
+        mode: c.mode || 'stdio',
+        ...(c.mode === 'function'
+          ? {
+              signature: { name: c.signature.name, params: c.signature.params.map(({ name, type }) => ({ name, type })), returns: c.signature.returns },
+              drivers: Object.fromEntries(Object.entries(c.drivers || {}).filter(([lang]) => c.languages.includes(lang))),
+            }
+          : {}),
         testCases: c.testCases.map((t) => ({ input: t.input, expectedOutput: t.expectedOutput, weight: Number(t.weight) || 1, hidden: Boolean(t.hidden) })),
       },
     };
@@ -98,11 +115,16 @@ export const defaultCode = () => ({
   memoryLimitMb: 256,
   comparison: 'trim',
   practice: false,
+  mode: 'stdio',
+  signature: defaultSignature(),
+  drivers: {},
   testCases: [
     { input: '', expectedOutput: '', weight: 1, hidden: false },
     { input: '', expectedOutput: '', weight: 1, hidden: true },
   ],
 });
+
+export const defaultSignature = () => ({ name: 'solve', params: [{ name: 'nums', type: 'int[]' }], returns: 'int' });
 
 function codeValues(code) {
   if (!code?.testCases?.length) return defaultCode();
@@ -113,6 +135,9 @@ function codeValues(code) {
     memoryLimitMb: code.memoryLimitMb ?? 256,
     comparison: code.comparison || 'trim',
     practice: Boolean(code.practice),
+    mode: code.mode || 'stdio',
+    signature: code.signature?.name ? { name: code.signature.name, params: (code.signature.params || []).map(({ name, type }) => ({ name, type })), returns: code.signature.returns } : defaultSignature(),
+    drivers: { ...(code.drivers || {}) },
     testCases: code.testCases.map((t) => ({ input: t.input ?? '', expectedOutput: t.expectedOutput ?? '', weight: t.weight ?? 1, hidden: Boolean(t.hidden) })),
   };
 }

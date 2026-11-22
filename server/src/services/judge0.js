@@ -4,8 +4,9 @@
  *
  * JUDGE0_URL         base URL of the Judge0 API (e.g. http://10.0.0.5:2358)
  * JUDGE0_AUTH_TOKEN  value of Judge0's AUTHN_TOKEN, sent as X-Auth-Token
- * JUDGE_MODE         'judge0' | 'fake'. Defaults to judge0 when JUDGE0_URL is set, otherwise
- *                    fake outside production (deterministic stand-in for tests and dev).
+ * JUDGE_MODE         'runner' | 'judge0' | 'fake' | 'off'. Defaults to runner when RUNNER_URL is
+ *                    set (see sandbox.js), judge0 when JUDGE0_URL is set, otherwise fake outside
+ *                    production (deterministic stand-in for tests and dev). Judge0 needs cgroup v1.
  */
 
 export const LANGUAGES = {
@@ -20,6 +21,7 @@ const languageIds = Object.fromEntries(LANGUAGE_KEYS.map((k) => [k, LANGUAGES[k]
 
 export function judgeMode() {
   if (process.env.JUDGE_MODE) return process.env.JUDGE_MODE;
+  if (process.env.RUNNER_URL) return 'runner';
   if (process.env.JUDGE0_URL) return 'judge0';
   return process.env.NODE_ENV === 'production' ? 'off' : 'fake';
 }
@@ -64,7 +66,9 @@ export async function resolveLanguageIds() {
     }
     console.log('[judge0] language ids', languageIds);
   } catch (err) {
-    console.error(`[judge0] could not list languages from JUDGE0_URL (${err.message}); using default language ids`);
+    console.error(
+      `[judge0] could not list languages from JUDGE0_URL (${err.message}); using default language ids`,
+    );
   }
   return languageIds;
 }
@@ -116,7 +120,8 @@ export function limitsFor(language, { timeLimitMs = 2000, memoryLimitMb = 256 } 
 
 /** Judge0 refuses batches larger than its MAX_SUBMISSION_BATCH_SIZE (20 by default). */
 const batchSize = () => Number(process.env.JUDGE0_BATCH_SIZE) || 20;
-const chunks = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+const chunks = (arr, n) =>
+  Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
 /**
  * Queues executions on Judge0. Each item is `{ language, source, stdin, limits }`.
@@ -156,16 +161,18 @@ export async function getBatch(tokens) {
       call(`/submissions/batch?tokens=${part.join(',')}&base64_encoded=true&fields=${FIELDS}`),
     ),
   );
-  return parts.flatMap((out) => out.submissions).map((s) => ({
-    token: s.token,
-    status: mapStatus(s.status_id, unb64(s.message)),
-    stdout: unb64(s.stdout),
-    stderr: unb64(s.stderr),
-    compileOutput: unb64(s.compile_output),
-    message: unb64(s.message),
-    timeMs: s.time ? Math.round(Number(s.time) * 1000) : null,
-    memoryKb: s.memory ?? null,
-  }));
+  return parts
+    .flatMap((out) => out.submissions)
+    .map((s) => ({
+      token: s.token,
+      status: mapStatus(s.status_id, unb64(s.message)),
+      stdout: unb64(s.stdout),
+      stderr: unb64(s.stderr),
+      compileOutput: unb64(s.compile_output),
+      message: unb64(s.message),
+      timeMs: s.time ? Math.round(Number(s.time) * 1000) : null,
+      memoryKb: s.memory ?? null,
+    }));
 }
 
 /**

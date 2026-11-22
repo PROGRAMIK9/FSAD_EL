@@ -1,7 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, openQuestionBank } from './fixtures.js';
 
 /**
- * The coding environment end to end, with the deterministic fake judge (JUDGE_MODE=fake):
+ * The coding environment end to end, on the fake judge, or on real compilers when RUNNER_URL
+ * points at a code runner (see runner/README.md):
  * a teacher writes a coding question in the question bank, puts it in a Lab that counts as
  * the CIE lab test, a student solves it in the proctored editor (run, submit, finish), the
  * code is graded after submission, and the problem is open in the practice area.
@@ -44,8 +45,8 @@ test('teacher writes a coding question with sample and hidden tests', async ({ p
   const subject = subjects.find((s) => s.code === 'MCA261IA') || subjects[0];
   ids.subject = subject._id;
 
-  await page.goto('/questions');
-  await page.getByRole('button', { name: 'New question' }).first().click();
+  await openQuestionBank(page);
+  await page.getByRole('button', { name: 'Create program' }).first().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Subject').selectOption(subject._id);
   await dialog.getByRole('button', { name: 'Coding' }).click();
@@ -54,7 +55,7 @@ test('teacher writes a coding question with sample and hidden tests', async ({ p
   await dialog.getByLabel('Test 1 expected output').fill('3');
   await dialog.getByLabel('Test 2 input').fill('40 2');
   await dialog.getByLabel('Test 2 expected output').fill('42');
-  await dialog.getByRole('button', { name: 'Add test case' }).click();
+  await dialog.getByRole('button', { name: 'Add hidden test case' }).click();
   await dialog.getByLabel('Test 3 input').fill('-5 5');
   await dialog.getByLabel('Test 3 expected output').fill('0');
   await dialog.getByLabel('Marks').fill('10');
@@ -80,7 +81,7 @@ test('teacher checks a reference solution against every test', async ({ page }) 
   expect(result.results).toHaveLength(3);
   expect(result.results.every((r) => r.status === 'AC')).toBe(true);
   // Staff see hidden tests' output.
-  expect(result.results[1].stdout).toBe('42');
+  expect(result.results[1].stdout.trim()).toBe('42');
 });
 
 test('teacher opens a Lab that counts as the CIE lab test', async ({ page }) => {
@@ -115,14 +116,16 @@ test('student solves the problem in the proctored editor and submits', async ({ 
   await page.getByLabel('Language').selectOption('python');
   await typeCode(page, '# FAKE:WA\nprint(0)\n');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByText('0/1 test passed')).toBeVisible();
+  await expect(page.getByText('0/1 test passed', { exact: true })).toBeVisible();
   await expect(page.getByText('Wrong answer')).toBeVisible();
 
   await typeCode(page, 'a, b = map(int, input().split())\nprint(a + b)\n');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByText('1/1 test passed')).toBeVisible();
+  await expect(page.getByText('1/1 test passed', { exact: true })).toBeVisible();
+  // Screen readers hear the result.
+  await expect(page.getByRole('status').filter({ hasText: 'Run finished: 1/1 test passed.' })).toBeAttached();
   await page.getByRole('button', { name: 'Submit code' }).click();
-  await expect(page.getByText('3/3 tests passed')).toBeVisible();
+  await expect(page.getByText('3/3 tests passed', { exact: true })).toBeVisible();
   await expect(page.getByText('Hidden test 2')).toBeVisible();
 
   await expect(page.getByText(/Saved/)).toBeVisible();
@@ -157,13 +160,13 @@ test('the problem is open for practice', async ({ page }) => {
   await page.getByLabel('Language').selectOption('cpp');
   await typeCode(page, '#include <iostream>\nint main(){int a,b;std::cin>>a>>b;std::cout<<a+b;}\n');
   await page.getByRole('button', { name: 'Submit code' }).click();
-  await expect(page.getByText('3/3 tests passed')).toBeVisible();
+  await expect(page.getByText('3/3 tests passed', { exact: true })).toBeVisible();
 
   await page.goto('/practice/playground');
   await typeCode(page, 'print(input())\n');
   await page.getByLabel('Language').selectOption('python');
   await typeCode(page, 'print(input())\n');
-  await page.getByLabel('Input', { exact: true }).fill('hello');
+  await page.getByLabel(/^Input/).fill('hello');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.locator('pre').filter({ hasText: 'hello' })).toBeVisible();
 });

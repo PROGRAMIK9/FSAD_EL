@@ -1,7 +1,8 @@
 /**
  * Loads the real MCA 3rd-semester scheme and syllabus (RVCE MCA 2024 scheme):
  * department, academic year, subjects with syllabus, the administrator, a
- * question bank per unit, Quiz 1 / Quiz 2 drafts, welcome announcements and
+ * question bank per unit, Quiz 1 / Quiz 2 drafts, a sample coding problem (Two Sum, open for
+ * practice in MCA261IA), welcome announcements and
  * tentative CIE calendar entries. Removes the old example (dummy) data.
  *
  * Idempotent: existing records are never overwritten, so edits made in the app
@@ -19,6 +20,7 @@ import {
   AcademicYear,
   Announcement,
   Assessment,
+  Assignment,
   Attempt,
   Department,
   Enrollment,
@@ -34,6 +36,9 @@ import {
 } from '../models/index.js';
 import { ACADEMIC_YEAR, ADMIN, CIE_THEORY, COURSES, DEPARTMENT, SEMESTER } from '../data/mca-sem3.js';
 import { QUESTIONS } from '../data/mca-sem3-questions.js';
+import { SAMPLE_CODING } from '../data/sample-coding.js';
+import { ACADEMIC_CALENDAR } from '../data/academic-calendar.js';
+import { validateQuestionBatch } from '../routes/questions.js';
 import { nameFromEmail } from '../services/auth.js';
 import { enrollInDefaultSubjects } from '../services/enrolment.js';
 import { resetUnchosenElectives } from '../services/electives.js';
@@ -286,17 +291,18 @@ try {
             { $set: { cieSlot: qz.slot } },
           );
       }
-      // Tentative CIE calendar, staggered by a day per course.
+      // Tentative course CIE dates, spread over three days. Tests fall in the official CIE-I
+      // (14-16 Oct) and CIE-II (2-4 Dec) windows; quizzes the week before each.
       const plan = [
-        ['Quiz 1', '2026-11-20', 'Units I-II, 10 marks, online'],
-        ['Test 1', '2026-11-25', 'Descriptive test, 50 marks'],
-        ['Experiential Learning Phase I', '2026-12-01', 'EL review, 20 marks'],
-        ['Quiz 2', '2026-12-07', 'Units III-V, 10 marks, online'],
-        ['Test 2', '2026-12-12', 'Descriptive test, 50 marks'],
+        ['Quiz 1', '2026-10-07', 'Units I-II, 10 marks, online'],
+        ['Test 1', '2026-10-14', 'Descriptive test, 50 marks (CIE-I)'],
+        ['Experiential Learning Phase I', '2026-10-28', 'EL review, 20 marks'],
+        ['Quiz 2', '2026-11-25', 'Units III-V, 10 marks, online'],
+        ['Test 2', '2026-12-02', 'Descriptive test, 50 marks (CIE-II)'],
         ['Experiential Learning Phase II', '2026-12-17', 'EL review, 20 marks'],
       ];
       for (const [what, date, detail] of plan) {
-        const day = addDays(date, ci);
+        const day = addDays(date, ci % 3);
         const title = `${code} ${what} (tentative)`;
         tally(
           'calendar',
@@ -325,6 +331,62 @@ try {
     );
   }
 
+  // The official academic calendar: institution-wide, all-day events.
+  for (const [no, title, from, to, type] of ACADEMIC_CALENDAR.events)
+    tally(
+      'calendar',
+      await upsert(
+        AcademicCalendarEvent,
+        { subject: null, title, startAt: ist(from, 0, 0) },
+        {
+          description: `${ACADEMIC_CALENDAR.title}, Sl. No. ${no} (${ACADEMIC_CALENDAR.reference}). Tentative: an activity on a Sunday or public holiday moves to the next working day.`,
+          endAt: new Date(ist(to || from, 23, 59).getTime() + 59_000),
+          type,
+          allDay: true,
+          createdBy: admin._id,
+        },
+      ),
+    );
+
+  // Sample coding problems (e.g. Two Sum, LeetCode style) open for practice.
+  for (const { subject: code, question } of SAMPLE_CODING) {
+    const subject = await Subject.findOne({ code, academicYear: ACADEMIC_YEAR.label }).select('_id');
+    if (!subject) continue;
+    const { questions, errors } = validateQuestionBatch([question]);
+    if (errors.length) throw new Error(`Sample coding problem is invalid: ${errors[0].error}`);
+    tally(
+      'coding',
+      await upsert(
+        Question,
+        { subject: subject._id, text: question.text },
+        { ...questions[0], subject: subject._id, creator: admin._id },
+      ),
+    );
+  }
+
+  // Link calendar entries made before entries recorded their source (quiz, assignment,
+  // announcement), so dragging them on the board moves the real record.
+  const linkSources = [
+    [Assessment, 'assessment', { type: { $in: ['Quiz', 'Lab'] } }],
+    [Assignment, 'assignment', { type: 'Assignment deadline' }],
+    [Announcement, 'announcement', { type: 'Announcement' }],
+  ];
+  let linked = 0;
+  for (const [Model, kind, match] of linkSources)
+    for (const e of await AcademicCalendarEvent.find({ ...match, 'source.kind': { $exists: false } }).select(
+      'subject title',
+    )) {
+      const rec = await Model.findOne({ subject: e.subject, title: e.title }).select('_id');
+      if (rec)
+        linked += (
+          await AcademicCalendarEvent.updateOne({ _id: e._id }, { $set: { source: { kind, id: rec._id } } })
+        ).modifiedCount;
+    }
+  if (linked)
+    console.log(
+      `Linked ${linked} calendar entr${linked === 1 ? 'y' : 'ies'} to their quiz, assignment or announcement`,
+    );
+
   // Students enrolled in every elective by the earlier rule are asked to choose instead.
   const electivesReset = await resetUnchosenElectives();
   // Students who signed in before the subjects existed get enrolled now.
@@ -341,7 +403,7 @@ try {
   console.log(`Removed example data: ${removedText || 'none found'}`);
   console.log(`Administrator: ${admin.email}`);
   console.log(
-    `Created: ${counts.subjects || 0} subjects, ${counts.questions || 0} questions, ${counts.quizzes || 0} quiz drafts, ${counts.announcements || 0} announcements, ${counts.calendar || 0} calendar events (existing records left unchanged)`,
+    `Created: ${counts.subjects || 0} subjects, ${counts.questions || 0} questions, ${counts.coding || 0} coding problems, ${counts.quizzes || 0} quiz drafts, ${counts.announcements || 0} announcements, ${counts.calendar || 0} calendar events (existing records left unchanged)`,
   );
   console.log(
     `Checked ${enrolled} existing student(s): enrolled in the ${COURSES.filter((c) => !c.electiveGroup).length} core subjects; ${electivesReset} asked to choose their elective again`,

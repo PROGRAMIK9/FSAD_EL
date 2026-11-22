@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 
 /**
  * Question-paper import, through all three ways a paper is read: a photo (OCR), a PDF with a

@@ -17,6 +17,7 @@ const QuestionBank = lazy(() => import('./pages/questions/QuestionBank.jsx'));
 const Practice = lazy(() => import('./pages/practice/Practice.jsx'));
 const PracticeProblem = lazy(() => import('./pages/practice/PracticeProblem.jsx'));
 const Playground = lazy(() => import('./pages/practice/Playground.jsx'));
+const CalendarBoard = lazy(() => import('./pages/calendar/CalendarBoard.jsx'));
 const ExamPage = lazy(() => import('./pages/exam/ExamPage.jsx'));
 const ExamRoom = lazy(() => import('./pages/exam/ExamRoom.jsx'));
 const AttemptRedirect = lazy(() => import('./pages/exam/ExamRoom.jsx').then((m) => ({ default: m.AttemptRedirect })));
@@ -61,7 +62,7 @@ export const appRoutes = [
   { path: '/practice/:id', element: <PracticeProblem /> },
   { path: '/assignments', element: <Legacy.Assignments /> },
   { path: '/announcements', element: <Legacy.Announcements /> },
-  { path: '/calendar', element: <Legacy.CalendarPage /> },
+  { path: '/calendar', element: <CalendarBoard /> },
   { path: '/notifications', element: <Legacy.Notifications /> },
   { path: '/audit', element: <Legacy.Audit />, roles: A },
   { path: '/settings', element: <Legacy.SettingsPage />, roles: A },

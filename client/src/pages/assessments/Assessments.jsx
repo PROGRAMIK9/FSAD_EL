@@ -24,7 +24,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useApi } from '../../hooks/useApi.js';
 import { useSocketEvent } from '../../hooks/useSocketEvent.js';
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton, StatusBadge, Tabs, useConfirm } from '../../components/ui/index.js';
-import { QuizCard, hueFor } from '../../components/domain/QuizCard.jsx';
+import { QuizCard, hueFor, tileFor } from '../../components/domain/QuizCard.jsx';
 import { fmtDateTime } from '../../lib/format.js';
 
 const OPEN_STATES = ['AVAILABLE', 'LIVE', 'PAUSED'];
@@ -203,7 +203,7 @@ export default function Assessments() {
             {rows.map((a) => (
               <li key={a._id} className="flex flex-col gap-3 px-5 py-4 transition hover:bg-surface-2/40 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <span className={`card-hero ${hueFor(a.subject?.code)} grid h-12 w-12 shrink-0 place-items-center !rounded-2xl !shadow-none font-display text-[11px] font-bold`}>{a.subject?.code}</span>
+                  <span className={`tile ${tileFor(a.subject?.code)} grid h-12 w-12 shrink-0 place-items-center !rounded-2xl !p-0 text-[10px] font-bold`}>{a.subject?.code}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate font-display font-semibold text-fg">{a.title}</p>
