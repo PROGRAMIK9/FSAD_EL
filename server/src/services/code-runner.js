@@ -31,11 +31,26 @@ export async function enqueueRun(fields) {
   return run;
 }
 
+export const CODE_MARKER = '@@USER_CODE@@';
+
+/**
+ * The program that actually runs. For function (LeetCode-style) questions the student's code is
+ * placed into the question's hidden driver for that language; otherwise it runs as written.
+ */
+export function composeSource(question, language, source) {
+  const code = question?.code;
+  if (code?.mode !== 'function') return source;
+  const driver = code.drivers instanceof Map ? code.drivers.get(language) : code.drivers?.[language];
+  if (!driver || !driver.includes(CODE_MARKER)) return source;
+  // A function replacer keeps `$&`-style sequences in student code literal.
+  return driver.replace(CODE_MARKER, () => source);
+}
+
 /** The executions a run needs: test cases picked by kind, plus custom stdin. */
 export function buildItems(run, question) {
   const code = question?.code || {};
   const limits = limitsFor(run.language, code);
-  const base = { language: run.language, source: run.source, limits };
+  const base = { language: run.language, source: composeSource(question, run.language, run.source), limits };
   const tests = (code.testCases || []).map((t, index) => ({ ...(t.toObject?.() ?? t), index }));
   const chosen = run.kind === 'run' ? tests.filter((t) => !t.hidden) : run.kind === 'scratch' ? [] : tests;
   const items = chosen.map((t) => ({

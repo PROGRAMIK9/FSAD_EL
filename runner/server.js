@@ -24,7 +24,7 @@ const IMAGE = process.env.SANDBOX_IMAGE || 'fsad-sandbox:latest';
 const DOCKER = process.env.DOCKER_BIN || 'docker';
 const RUNTIME = process.env.RUNNER_DOCKER_RUNTIME || '';
 const LANGUAGES = new Set(['c', 'cpp', 'java', 'python']);
-const MAX_BODY = 4 * 1024 * 1024;
+const MAX_BODY = 20 * 1024 * 1024;
 
 if (!TOKEN && process.env.RUNNER_INSECURE !== 'true') {
   console.error('Set RUNNER_AUTH_TOKEN (or RUNNER_INSECURE=true for local development only).');
@@ -59,7 +59,7 @@ export function normalizeJob(body) {
   if (typeof body.source !== 'string' || !body.source.length || body.source.length > 64 * 1024)
     throw Object.assign(new Error('Source must be 1 byte to 64 KB'), { status: 400 });
   const tests = Array.isArray(body.tests) ? body.tests.map((t) => String(t ?? '')) : [];
-  if (tests.length > 40) throw Object.assign(new Error('At most 40 tests'), { status: 400 });
+  if (tests.length > 60) throw Object.assign(new Error('At most 60 tests'), { status: 400 });
   const l = body.limits || {};
   const limits = {
     cpuMs: clampInt(l.cpuMs, 200, 15_000, 2000),

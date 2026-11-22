@@ -23,7 +23,7 @@
 | | |
 |---|---|
 | **Proctored quizzes** | Timed, auto-saved 10-mark quizzes (MCQ and fill-in) with fullscreen, tab-switch and clipboard proctoring, a live teacher monitor, rooms with join codes, and automatic scoring. |
-| **Coding labs** | C, C++, Java and Python questions with sample and hidden test cases, a CodeMirror editor, Run / Submit, weighted partial marks, and practice problems with a playground. Code runs in throwaway Docker sandboxes, and the setup was load-tested with 250 concurrent students. |
+| **Coding labs** | C, C++, Java and Python questions, either HackerRank style (stdin/stdout) or LeetCode style (students write one function; drivers are generated). Sample and hidden test cases, importable from HackerRank zips, `.in`/`.out` files or JSON. A CodeMirror editor, Run / Submit, weighted partial marks, and practice problems with a playground. Code runs in throwaway Docker sandboxes, and the setup was load-tested with 250 concurrent students. |
 | **Question bank** | Reusable questions per subject, including importing a whole question paper from a PDF or photo (in-browser OCR). |
 | **CIE marks** | Quiz 1, Quiz 2 and the lab test fill the CIE sheet automatically; teachers enter tests and EL, then publish. Excel/CSV exports throughout. |
 | **Academics** | Departments, years, semesters, subjects, teacher allocation, elective choice, assignments, announcements, calendar, notifications and grade clarification requests. |
@@ -133,6 +133,7 @@ The app runs as one service: deploy it on Render with [`render.yaml`](render.yam
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md): data model, workflows, security
+- [Adding coding questions](docs/QUESTION_FORMAT.md): HackerRank and LeetCode style, test import, JSON format
 - [API](docs/API.md): endpoint overview
 - [Deployment](docs/DEPLOYMENT.md): Render, Docker, the code runner, operations
 - [Code runner](runner/README.md): sandbox design, sizing, tests

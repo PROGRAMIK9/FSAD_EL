@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, LANGUAGE_KEYS, executeCode, starterFor, summarize, verdictOf } from '../../lib/code.js';
 import { Badge, Button, Spinner, Tabs } from '../ui/index.js';
+import { formatSignature } from '../../lib/function-drivers.js';
 
 const CodeEditor = lazy(() => import('./CodeEditor.jsx'));
 
@@ -215,6 +216,12 @@ export function CodeWorkspace({
 
   const editor = (
     <div className="flex min-w-0 flex-col gap-3">
+      {code.mode === 'function' && code.signature?.name && (
+        <p className="rounded-2xl bg-tile-lime px-4 py-2.5 text-sm text-tile-ink">
+          <span className="font-semibold">Implement</span> <code className="font-mono font-semibold">{formatSignature(code.signature)}</code>
+          <span className="mt-0.5 block text-xs text-tile-ink/70">Write only the function (in a class Solution where the starter has one). Each test passes the arguments; your return value is compared.</span>
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <select
           className="input w-auto py-1.5 pr-8 text-sm"

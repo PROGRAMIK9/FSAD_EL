@@ -16,20 +16,33 @@ const router = Router();
 const MAX_SOURCE = 64 * 1024;
 const MAX_STDIN = 64 * 1024;
 
-/** The parts of a coding question a student may see: never the hidden tests. */
+/** Characters of a sample test shown to students (Run still uses the whole test). */
+const SAMPLE_SHOWN = 16 * 1024;
+
+/** The parts of a coding question a student may see: never the hidden tests or the drivers. */
 export function studentCodeView(code) {
   if (!code) return null;
   const starter = code.starter instanceof Map ? Object.fromEntries(code.starter) : code.starter || {};
   const tests = code.testCases || [];
+  const clip = (s = '') =>
+    s.length > SAMPLE_SHOWN
+      ? `${s.slice(0, SAMPLE_SHOWN)}\n… (${s.length - SAMPLE_SHOWN} more characters)`
+      : s;
   return {
     languages: code.languages?.length ? code.languages : LANGUAGE_KEYS,
+    mode: code.mode || 'stdio',
+    signature: code.mode === 'function' ? code.signature : undefined,
     starter,
     timeLimitMs: code.timeLimitMs,
     memoryLimitMb: code.memoryLimitMb,
     samples: tests
       .map((t, index) => ({ index, input: t.input, expectedOutput: t.expectedOutput, hidden: t.hidden }))
       .filter((t) => !t.hidden)
-      .map(({ index, input, expectedOutput }) => ({ index, input, expectedOutput })),
+      .map(({ index, input, expectedOutput }) => ({
+        index,
+        input: clip(input),
+        expectedOutput: clip(expectedOutput),
+      })),
     hiddenCount: tests.filter((t) => t.hidden).length,
   };
 }
