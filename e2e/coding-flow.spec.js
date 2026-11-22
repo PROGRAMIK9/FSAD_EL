@@ -46,7 +46,7 @@ test('teacher writes a coding question with sample and hidden tests', async ({ p
   ids.subject = subject._id;
 
   await openQuestionBank(page);
-  await page.getByRole('button', { name: 'New question' }).first().click();
+  await page.getByRole('button', { name: 'Create program' }).first().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Subject').selectOption(subject._id);
   await dialog.getByRole('button', { name: 'Coding' }).click();
@@ -55,7 +55,7 @@ test('teacher writes a coding question with sample and hidden tests', async ({ p
   await dialog.getByLabel('Test 1 expected output').fill('3');
   await dialog.getByLabel('Test 2 input').fill('40 2');
   await dialog.getByLabel('Test 2 expected output').fill('42');
-  await dialog.getByRole('button', { name: 'Add test case' }).click();
+  await dialog.getByRole('button', { name: 'Add hidden test case' }).click();
   await dialog.getByLabel('Test 3 input').fill('-5 5');
   await dialog.getByLabel('Test 3 expected output').fill('0');
   await dialog.getByLabel('Marks').fill('10');

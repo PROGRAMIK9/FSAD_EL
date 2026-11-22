@@ -32,5 +32,5 @@ export { expect };
 export async function openQuestionBank(page) {
   await page.goto('/questions');
   await expect(page.getByRole('heading', { name: /Question\s+bank/ })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: 'New question' }).first()).toBeEnabled({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Create program' }).first()).toBeEnabled({ timeout: 15_000 });
 }

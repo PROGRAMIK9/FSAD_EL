@@ -98,7 +98,7 @@ export function QuestionEditor({ subjects, question, initial, defaultSubject, lo
               options={[
                 { value: 'single', label: 'Multiple choice', icon: ListChecks },
                 { value: 'fill_blank', label: 'Fill in', icon: TextCursorInput },
-                ...(onSubmit ? [] : [{ value: 'code', label: 'Coding', icon: Code2 }]),
+                ...(onSubmit ? [] : [{ value: 'code', label: 'Coding program', icon: Code2 }]),
               ]}
             />
           </Field>

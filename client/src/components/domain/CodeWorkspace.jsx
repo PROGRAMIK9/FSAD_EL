@@ -403,7 +403,7 @@ export function CodeWorkspace({
           onClick={() => go('run')}
           className={busy === 'run' ? '[&>svg]:animate-spin' : ''}
           aria-keyshortcuts="Control+Enter"
-          title="Run the sample tests (Ctrl+Enter)"
+          title="Run the public tests (Ctrl+Enter)"
         >
           Run
         </Button>
@@ -415,7 +415,7 @@ export function CodeWorkspace({
           onClick={() => go('submit')}
           className={busy === 'submit' ? '[&>svg]:animate-spin' : ''}
           aria-keyshortcuts="Control+Shift+Enter"
-          title="Judge against every test (Ctrl+Shift+Enter)"
+          title="Judge against public and hidden tests (Ctrl+Shift+Enter)"
         >
           Submit code
         </Button>

@@ -33,7 +33,7 @@ test('teacher builds a LeetCode-style function question', async ({ page }) => {
   ids.other = subjects.find((s) => s._id !== subject._id)._id;
 
   await openQuestionBank(page);
-  await page.getByRole('button', { name: 'New question' }).first().click();
+  await page.getByRole('button', { name: 'Create program' }).first().click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Subject').selectOption(subject._id);
   await dialog.getByRole('button', { name: 'Coding' }).click();
