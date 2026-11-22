@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * The coding environment end to end, with the deterministic fake judge (JUDGE_MODE=fake):
+ * The coding environment end to end, on the fake judge, or on real compilers when RUNNER_URL
+ * points at a code runner (see runner/README.md):
  * a teacher writes a coding question in the question bank, puts it in a Lab that counts as
  * the CIE lab test, a student solves it in the proctored editor (run, submit, finish), the
  * code is graded after submission, and the problem is open in the practice area.
@@ -80,7 +81,7 @@ test('teacher checks a reference solution against every test', async ({ page }) 
   expect(result.results).toHaveLength(3);
   expect(result.results.every((r) => r.status === 'AC')).toBe(true);
   // Staff see hidden tests' output.
-  expect(result.results[1].stdout).toBe('42');
+  expect(result.results[1].stdout.trim()).toBe('42');
 });
 
 test('teacher opens a Lab that counts as the CIE lab test', async ({ page }) => {

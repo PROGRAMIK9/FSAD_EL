@@ -1,4 +1,6 @@
-# Judge0: the code sandbox
+# Judge0 (legacy alternative)
+
+> **Use the [code runner](../runner/README.md) instead.** Judge0 1.13 depends on an isolate version that needs **cgroup v1**, which Arch, Ubuntu 24.04, Fedora and WSL2 do not provide by default. The app still supports Judge0 (`JUDGE0_URL`, or `JUDGE_MODE=judge0`) for hosts booted with `systemd.unified_cgroup_hierarchy=0`.
 
 Student code (C, C++, Java, Python 3) is compiled and run by [Judge0 CE](https://github.com/judge0/judge0) 1.13.1. Judge0 runs each program inside the `isolate` sandbox with CPU, memory, process and file-size limits, and with no network.
 

@@ -13,6 +13,7 @@ import {
 import { buildItems, hashSource, scoreResults } from '../src/services/code-runner.js';
 import { evaluateObjective, publicRunResults, reviewAnswers } from '../src/services/grading.js';
 import { studentCodeView } from '../src/routes/code.js';
+import { runSandbox, runnerLimits } from '../src/services/sandbox.js';
 import { validateQuestionBatch } from '../src/routes/questions.js';
 
 const question = {
@@ -255,4 +256,52 @@ test('the Judge0 client batches, base64-encodes and authenticates', async (t) =>
   ]);
   const posts = seen.filter((s) => s.method === 'POST').map((s) => JSON.parse(s.body).submissions.length);
   assert.deepEqual(posts, [1, 1]);
+});
+
+test('the runner client sends one job per run and maps results back', async (t) => {
+  const jobs = [];
+  let reply = {};
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      jobs.push({ token: req.headers['x-auth-token'], job: JSON.parse(body) });
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(reply));
+    });
+  });
+  await new Promise((r) => server.listen(0, r));
+  t.after(() => server.close());
+  const env = { ...process.env };
+  t.after(() => (process.env = env));
+  process.env.RUNNER_URL = `http://127.0.0.1:${server.address().port}`;
+  process.env.RUNNER_AUTH_TOKEN = 'tok';
+
+  const items = buildItems({ kind: 'run', language: 'java', source: 'class Main{}', stdin: 'x' }, question);
+  reply = {
+    compileOk: true,
+    compileOutput: '',
+    results: [
+      { status: 'OK', stdout: '3\n', stderr: '', timeMs: 40, memoryKb: 30000 },
+      { status: 'TLE', stdout: '', stderr: '', timeMs: 3000, memoryKb: 30000 },
+    ],
+  };
+  const out = await runSandbox(items);
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].token, 'tok');
+  assert.deepEqual(jobs[0].job.tests, ['1 2', 'x']);
+  assert.deepEqual(jobs[0].job.limits, runnerLimits(limitsFor('java', question.code)));
+  assert.equal(jobs[0].job.limits.cpuMs, 3000, 'Java gets extra CPU time');
+  assert.equal(out[0].status, 'OK');
+  assert.equal(out[1].status, 'TLE');
+  const scored = scoreResults(items, out, question);
+  assert.equal(scored.results[0].status, 'AC');
+
+  reply = { compileOk: false, compileOutput: 'Main.java:1: error', results: [] };
+  const ce = await runSandbox(items);
+  assert.deepEqual(
+    ce.map((o) => o.status),
+    ['CE', 'CE'],
+  );
+  assert.match(ce[0].compileOutput, /error/);
 });

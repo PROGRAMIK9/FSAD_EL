@@ -3,6 +3,7 @@ import { CodeRun, Question } from '../models/index.js';
 import { clip, fakeExecute, getBatch, judgeMode, limitsFor, sameOutput, submitBatch } from './judge0.js';
 import { toStudent } from './realtime.js';
 import { completeCodeGrading } from './attempts.js';
+import { runSandbox } from './sandbox.js';
 
 /**
  * Code execution queue. Runs are CodeRun documents (status queued → running → done | error),
@@ -82,6 +83,7 @@ export function scoreResults(items, outputs, question) {
 
 async function execute(items) {
   if (!items.length) return [];
+  if (judgeMode() === 'runner') return runSandbox(items);
   if (judgeMode() === 'fake') {
     // JUDGE_FAKE_DELAY_MS imitates Judge0's compile + run time in load tests.
     await sleep(Number(process.env.JUDGE_FAKE_DELAY_MS) || 30);
@@ -102,7 +104,9 @@ async function execute(items) {
 async function processRun(run) {
   const question = run.question ? await Question.findById(run.question) : null;
   const items = buildItems(run, question);
-  inflight += Math.max(1, items.length);
+  // The runner takes a whole run per request; Judge0 takes one execution per item.
+  const weight = judgeMode() === 'judge0' ? Math.max(1, items.length) : 1;
+  inflight += weight;
   active.add(String(run._id));
   try {
     const outputs = await execute(items);
@@ -122,7 +126,7 @@ async function processRun(run) {
     );
     if (retry) return;
   } finally {
-    inflight -= Math.max(1, items.length);
+    inflight -= weight;
     active.delete(String(run._id));
   }
   await announce(run._id);
