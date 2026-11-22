@@ -14,12 +14,13 @@ On the first run this creates a local `.env` (random JWT secret, local MongoDB),
 
 | Command | What it does |
 |---|---|
-| `./run.sh` | Set up if needed, start MongoDB, seed an empty database, run API and client |
+| `./run.sh` | Set up if needed, start MongoDB, seed an empty database, start the code runner, run API and client. If the Atlas cluster in `.env` is unreachable (e.g. a network that blocks port 27017), it uses a local MongoDB for that run (`DB_FALLBACK=0` to fail instead, `LOCAL_DB=1` to always use local). The code runner needs Docker (`RUNNER=0` to use the fake judge). |
 | `./run.sh setup` | Create `.env` and install dependencies only |
 | `./run.sh seed` | Load the MCA semester III subjects, syllabus, question bank and quiz drafts |
-| `./run.sh test` | Run the server tests |
+| `./run.sh test` | Run the server, client and code runner tests |
+| `./run.sh runner` | Build the code sandbox image (`REBUILD=1` to rebuild) and run the code runner in the foreground |
 | `./run.sh build` | Build the client into `client/dist` |
-| `./run.sh stop` | Stop a MongoDB left running by the script |
+| `./run.sh stop` | Stop a MongoDB or code runner left running by the script |
 
 Requirements: Node.js 20+, and either MongoDB 7 (`mongod`) or Docker. The generated `.env` is for local development only and keeps the sign-in picker (`DEV_LOGIN`) off, because the database holds a real administrator account; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for production settings.
 
