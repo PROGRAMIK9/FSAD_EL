@@ -87,7 +87,7 @@ test('teacher checks a reference solution against every test', async ({ page }) 
 test('teacher opens a Lab that counts as the CIE lab test', async ({ page }) => {
   await signIn(page, USERS.teacher);
   const quizOnly = await page.request.post('/api/assessments', {
-    data: { subject: ids.subject, title: 'Not allowed', questionIds: [ids.question], durationMinutes: 30, availabilityMode: 'instant' },
+    data: { subject: ids.subject, title: 'Not allowed', questionIds: [ids.question], durationMinutes: 20, availabilityMode: 'instant' },
   });
   expect((await quizOnly.json()).error).toMatch(/Use a Lab/);
   const lab = await api(page, 'post', '/assessments', {

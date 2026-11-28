@@ -51,7 +51,7 @@ test('teacher drags a scheduled quiz to another day', async ({ page }) => {
     durationMinutes: 30,
     availabilityMode: 'scheduled',
     startsAt: start.toISOString(),
-    endsAt: at(monday, 2, 11).toISOString(),
+    endsAt: at(monday, 2, 10, 30).toISOString(),
     publish: true,
   });
   ids.quiz = quiz._id;
@@ -75,7 +75,7 @@ test('teacher drags a scheduled quiz to another day', async ({ page }) => {
 
   const moved = await api(page, 'get', `/assessments/${ids.quiz}`);
   expect(new Date(moved.startsAt).getTime()).toBe(at(monday, 4, 10).getTime());
-  expect(new Date(moved.endsAt).getTime()).toBe(at(monday, 4, 11).getTime());
+  expect(new Date(moved.endsAt).getTime()).toBe(at(monday, 4, 10, 30).getTime());
 });
 
 test('teacher reschedules with the keyboard; announcements stay put', async ({ page }) => {
