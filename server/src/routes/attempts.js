@@ -70,6 +70,11 @@ const isAnswered = (v) =>
     ? Boolean(String(v.source ?? '').trim())
     : String(v).trim() !== '');
 const answeredCount = (answers) => answers.filter((a) => isAnswered(a.value)).length;
+// Older/partially migrated subjects can have attempts whose students are missing
+// from Subject.students. Keep submitted attempts visible in reports in that case.
+const rosterIds = (subjectStudents = [], attempts = []) => [
+  ...new Set([...subjectStudents.map(String), ...attempts.map((at) => String(at.student))]),
+];
 
 /**
  * Everything the exam screen needs: the paper, saved answers, timing (with the
@@ -498,13 +503,14 @@ router.get(
   allow('teacher', 'admin'),
   wrap(async (req, res) => {
     const a = await loadAssessmentForTeacher(req.params.id, req.user);
-    const [students, attempts] = await Promise.all([
-      User.find({ _id: { $in: a.subject.students }, role: 'student' })
-        .select('name usn email')
-        .sort({ name: 1 })
-        .lean(),
-      Attempt.find({ assessment: a._id }).select('-optionOrders').sort({ attemptNumber: -1 }).lean(),
-    ]);
+    const attempts = await Attempt.find({ assessment: a._id })
+      .select('-optionOrders')
+      .sort({ attemptNumber: -1 })
+      .lean();
+    const students = await User.find({ _id: { $in: rosterIds(a.subject.students, attempts) }, role: 'student' })
+      .select('name usn email')
+      .sort({ name: 1 })
+      .lean();
     const latest = new Map();
     for (const at of attempts) if (!latest.has(String(at.student))) latest.set(String(at.student), at);
     const roster = students.map((s) => {
@@ -582,15 +588,15 @@ router.get(
     const { format } = req.params;
     if (!EXPORT_FORMATS.includes(format)) throw httpError(404, 'Unknown export format');
     const a = await loadAssessmentForTeacher(req.params.id, req.user);
-    const [students, attempts, grades, questions] = await Promise.all([
-      User.find({ _id: { $in: a.subject.students }, role: 'student' })
-        .select('name usn email')
-        .sort({ name: 1 })
-        .lean(),
+    const [attempts, grades, questions] = await Promise.all([
       Attempt.find({ assessment: a._id }).select('-optionOrders').sort({ attemptNumber: -1 }).lean(),
       Grade.find({ assessment: a._id }).lean(),
       Question.find({ _id: { $in: a.questionIds } }).lean(),
     ]);
+    const students = await User.find({ _id: { $in: rosterIds(a.subject.students, attempts) }, role: 'student' })
+      .select('name usn email')
+      .sort({ name: 1 })
+      .lean();
     const latest = new Map();
     for (const at of attempts) if (!latest.has(String(at.student))) latest.set(String(at.student), at);
     const gradeOf = new Map(grades.map((g) => [String(g.student), g]));
