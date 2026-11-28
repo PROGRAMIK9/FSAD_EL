@@ -201,6 +201,7 @@ function QuestionView({ q, index, total, answer, onAnswer, disabled, noSelect, a
         disabled={disabled}
         onChange={(v) => onAnswer({ value: v }, { debounce: 2000 })}
         allowFocusMode={false}
+        minHeight="0px"
         height="calc(100dvh - 17.5rem)"
         title={`Question ${index + 1} of ${total}`}
         statement={

@@ -281,6 +281,7 @@ export function CodeWorkspace({
   title,
   backTo,
   allowFocusMode = true,
+  minHeight = '34rem',
   height = 'calc(100dvh - 8.5rem)',
 }) {
   const code = question.code || {};
@@ -528,8 +529,8 @@ export function CodeWorkspace({
   return (
     <section
       aria-label="Coding workspace"
-      className={focus ? 'fixed inset-0 z-50 flex flex-col bg-bg p-3 sm:p-4' : 'flex flex-col lg:h-[var(--ws-h)] lg:min-h-[34rem]'}
-      style={focus ? undefined : { '--ws-h': height }}
+      className={focus ? 'fixed inset-0 z-50 flex flex-col bg-bg p-3 sm:p-4' : 'flex flex-col lg:h-[var(--ws-h)] lg:min-h-[var(--ws-min-h)]'}
+      style={focus ? undefined : { '--ws-h': height, '--ws-min-h': minHeight }}
     >
       {toolbar}
       <SplitPane

@@ -34,7 +34,7 @@ function Segmented({ value, onChange, options }) {
  * `onSubmit(values)` replaces saving: the editor hands back its form values instead of calling the
  * API (used to fix drafts read from a question paper before they are imported).
  */
-export function QuestionEditor({ subjects, question, initial, defaultSubject, lockSubject, topics = [], onSaved, onCancel, onSubmit, submitLabel }) {
+export function QuestionEditor({ subjects, question, initial, defaultSubject, lockSubject, allowCode = true, codeOnly = false, topics = [], onSaved, onCancel, onSubmit, submitLabel }) {
   const {
     register,
     control,
@@ -95,10 +95,10 @@ export function QuestionEditor({ subjects, question, initial, defaultSubject, lo
             <Segmented
               value={values.type}
               onChange={(v) => setValue('type', v, { shouldValidate: false })}
-              options={[
+              options={codeOnly ? [{ value: 'code', label: 'Coding program', icon: Code2 }] : [
                 { value: 'single', label: 'Multiple choice', icon: ListChecks },
                 { value: 'fill_blank', label: 'Fill in', icon: TextCursorInput },
-                ...(onSubmit ? [] : [{ value: 'code', label: 'Coding program', icon: Code2 }]),
+                ...(!onSubmit && allowCode ? [{ value: 'code', label: 'Coding program', icon: Code2 }] : []),
               ]}
             />
           </Field>

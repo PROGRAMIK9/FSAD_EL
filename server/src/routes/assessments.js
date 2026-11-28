@@ -31,12 +31,9 @@ const assessmentFields = {
   subject: z.string().refine(oid, 'Invalid subject'),
   title: z.string().trim().min(3).max(160),
   description: z.string().max(4000).optional(),
-  category: z.enum(['Quiz', 'Lab']).default('Quiz'),
+  category: z.enum(['Quiz', 'Lab', 'Coding test']).default('Quiz'),
   questionIds: z.array(z.string().refine(oid)).min(1, 'Select at least one question').max(100),
-  maxMarks: z.coerce
-    .number()
-    .default(QUIZ_MARKS)
-    .refine((v) => v === QUIZ_MARKS, 'Quiz maximum marks must be 10'),
+  maxMarks: z.coerce.number().positive().default(QUIZ_MARKS),
   durationMinutes: z.coerce.number().int().positive().max(600),
   startsAt: optionalDate,
   endsAt: optionalDate,
@@ -55,12 +52,12 @@ const SLOT_NAMES = { QUIZ1: 'Quiz 1', QUIZ2: 'Quiz 2', LAB_TEST: 'the lab test' 
 /** A subject can have one Quiz 1, one Quiz 2 and one lab test that count towards CIE. */
 async function checkCieSlot(subjectId, slot, exceptId, category = 'Quiz') {
   if (!slot) return;
-  if ((slot === 'LAB_TEST') !== (category === 'Lab'))
+  if ((slot === 'LAB_TEST') !== (category !== 'Quiz'))
     throw httpError(
       400,
-      category === 'Lab'
-        ? 'A lab can only count as the CIE lab test'
-        : 'Only a lab can count as the CIE lab test',
+      category !== 'Quiz'
+        ? 'A lab or coding test can only count as the CIE lab test'
+        : 'Only a lab or coding test can count as the CIE lab test',
     );
   const clash = await Assessment.findOne({
     subject: subjectId,
@@ -72,7 +69,8 @@ async function checkCieSlot(subjectId, slot, exceptId, category = 'Quiz') {
 }
 
 /** Ensures the window and duration are coherent. */
-function checkTiming({ startsAt, endsAt, durationMinutes, availabilityMode }, { publishing }) {
+function checkTiming({ startsAt, endsAt, durationMinutes, availabilityMode, category }, { publishing }) {
+  if (category === 'Quiz' && durationMinutes !== 20) throw httpError(400, 'Quizzes must last 20 minutes');
   if (startsAt && endsAt && endsAt <= startsAt)
     throw httpError(400, 'Closing time must be after opening time');
   if (startsAt && endsAt && durationMinutes > (endsAt - startsAt) / 60_000)
@@ -83,8 +81,8 @@ function checkTiming({ startsAt, endsAt, durationMinutes, availabilityMode }, { 
 }
 
 /**
- * Validates the selected questions: same subject, active, supported types, exactly 10 marks.
- * Quizzes take MCQ and fill-in questions; labs also take coding questions.
+ * Validates selected questions: same subject, active, supported types and matching maximum marks.
+ * Quizzes take MCQ and fill-in questions; labs and coding tests also take coding questions.
  */
 async function checkPaper(subjectId, questionIds, maxMarks = QUIZ_MARKS, category = 'Quiz') {
   const unique = [...new Set(questionIds.map(String))];
@@ -92,12 +90,13 @@ async function checkPaper(subjectId, questionIds, maxMarks = QUIZ_MARKS, categor
   const qs = await Question.find({ _id: { $in: unique }, subject: subjectId, archivedAt: null });
   if (qs.length !== unique.length)
     throw httpError(400, 'Questions must be active and from the selected subject');
-  if (category !== 'Lab' && qs.some((q) => !['single', 'fill_blank'].includes(q.type)))
+  if (category === 'Quiz' && qs.some((q) => !['single', 'fill_blank'].includes(q.type)))
     throw httpError(
       400,
-      'Quizzes support MCQ and single-line fill-in questions only. Use a Lab for coding questions.',
+      'Quizzes support MCQ and single-line fill-in questions only. Use a Lab or Coding test for coding questions.',
     );
   const total = Math.round(qs.reduce((n, q) => n + q.marks, 0) * 100) / 100;
+  if (category === 'Quiz' && maxMarks !== QUIZ_MARKS) throw httpError(400, 'Quizzes must be worth exactly 10 marks');
   if (total !== maxMarks) throw httpError(400, `Question marks total ${total}, not ${maxMarks}`);
   return qs;
 }

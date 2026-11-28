@@ -192,7 +192,7 @@ export const quizFormSchema = z
     endsAt: z.string(),
     durationMinutes: z.coerce.number({ invalid_type_error: 'Enter a duration' }).int('Whole minutes only').min(1, 'At least 1 minute').max(600, 'At most 600 minutes'),
     attemptsAllowed: z.coerce.number().int().min(1).max(10),
-    category: z.enum(['Quiz', 'Lab']).default('Quiz'),
+    category: z.enum(['Quiz', 'Lab', 'Coding test']).default('Quiz'),
     cieSlot: z.enum(['', 'QUIZ1', 'QUIZ2', 'LAB_TEST']).default(''),
     randomizeQuestions: z.boolean(),
     randomizeOptions: z.boolean(),
@@ -209,7 +209,8 @@ export const quizFormSchema = z
   .superRefine((v, ctx) => {
     const start = v.startsAt ? new Date(v.startsAt) : null;
     const end = v.endsAt ? new Date(v.endsAt) : null;
-    if (v.cieSlot && (v.cieSlot === 'LAB_TEST') !== (v.category === 'Lab')) ctx.addIssue({ code: 'custom', path: ['cieSlot'], message: v.category === 'Lab' ? 'A lab can only count as the lab test' : 'Only a lab can count as the lab test' });
+    if (v.cieSlot && (v.cieSlot === 'LAB_TEST') !== (v.category !== 'Quiz')) ctx.addIssue({ code: 'custom', path: ['cieSlot'], message: v.category !== 'Quiz' ? 'A lab or coding test can only count as the lab test' : 'Only a lab or coding test can count as the lab test' });
+    if (v.category === 'Quiz' && v.durationMinutes !== 20) ctx.addIssue({ code: 'custom', path: ['durationMinutes'], message: 'Quizzes must last 20 minutes' });
     if (v.availabilityMode === 'scheduled' && !start) ctx.addIssue({ code: 'custom', path: ['startsAt'], message: 'Scheduled quizzes need an opening time' });
     if (start && end && end <= start) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'Must be after the opening time' });
     if (end && end <= new Date()) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'Closing time is in the past' });

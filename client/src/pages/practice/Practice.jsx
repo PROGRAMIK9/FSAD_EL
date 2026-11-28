@@ -1,17 +1,23 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, CheckCircle2, Code2, Search, TerminalSquare } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Code2, Plus, Search, TerminalSquare } from 'lucide-react';
 import { useApi } from '../../hooks/useApi.js';
 import { LANGUAGES } from '../../lib/code.js';
-import { Alert, Badge, Card, EmptyState, PageHeader, Shape, Skeleton, Squiggle, TagPill } from '../../components/ui/index.js';
+import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, Shape, Skeleton, Squiggle, TagPill } from '../../components/ui/index.js';
+import { QuestionEditor } from '../questions/QuestionEditor.jsx';
+import { fromQuestion } from '../../lib/schemas.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const difficultyTone = { easy: 'success', medium: 'warn', hard: 'danger' };
 
 /** Coding problems open for practice in the user's subjects, plus a free playground. */
 export default function Practice() {
-  const { data: problems, loading, error } = useApi('/practice/questions', { initial: [] });
+  const { user } = useAuth();
+  const { data: problems, loading, error, reload } = useApi('/practice/questions', { initial: [] });
+  const { data: allocatedSubjects } = useApi(user?.role === 'admin' || user?.role === 'teacher' ? '/subjects' : null, { initial: [] });
   const [query, setQuery] = useState('');
   const [subject, setSubject] = useState('');
+  const [creating, setCreating] = useState(false);
   const subjects = useMemo(
     () => [...new Map(problems.map((p) => [p.subject?._id, p.subject])).values()].filter(Boolean),
     [problems],
@@ -24,7 +30,7 @@ export default function Practice() {
 
   return (
     <div>
-      <PageHeader eyebrow="Coding" title="Coding" accent="practice" description="Solve coding problems in C, C++, Java or Python. Practice runs are never graded." />
+      <PageHeader eyebrow="Coding" title="Coding" accent="practice" description="Solve coding problems in C, C++, Java or Python. Practice runs are never graded." actions={(user?.role === 'admin' || user?.role === 'teacher') && <Button variant="primary" icon={Plus} onClick={() => setCreating(true)} disabled={!allocatedSubjects.length}>Create coding question</Button>} />
       <div className="mb-6 grid gap-4 md:grid-cols-[2fr_1fr]">
         <section className="tile tile-lime flex min-h-[11rem] flex-col justify-between !p-6">
           <Shape shape="flower" className="absolute -right-6 -top-8 -z-10 h-36 w-36 rotate-12 text-tile-green" />
@@ -134,11 +140,25 @@ export default function Practice() {
             description={
               problems.length
                 ? undefined
-                : 'Your teachers have not opened any coding problems for practice. You can still try code in the playground.'
+                : 'No coding questions are available for your subjects yet. You can still try code in the playground.'
             }
           />
         )}
       </Card>
+      {creating && (
+        <Modal size="xl" title="Create coding question" onClose={() => setCreating(false)}>
+          <QuestionEditor
+            subjects={allocatedSubjects}
+            initial={{ ...fromQuestion(null, allocatedSubjects[0]?._id || ''), type: 'code' }}
+            codeOnly
+            onCancel={() => setCreating(false)}
+            onSaved={async () => {
+              setCreating(false);
+              await reload();
+            }}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

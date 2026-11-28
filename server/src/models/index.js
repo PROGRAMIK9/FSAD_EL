@@ -103,7 +103,7 @@ const assessmentSchema = new Schema(
     creator: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true },
     description: String,
-    category: { type: String, enum: ['Quiz', 'Lab'], default: 'Quiz' },
+    category: { type: String, enum: ['Quiz', 'Lab', 'Coding test'], default: 'Quiz' },
     state: {
       type: String,
       enum: [
@@ -120,7 +120,7 @@ const assessmentSchema = new Schema(
       default: 'DRAFT',
     },
     questionIds: [{ type: Schema.Types.ObjectId, ref: 'Question' }],
-    maxMarks: { type: Number, enum: [10], required: true },
+    maxMarks: { type: Number, min: 0.5, required: true },
     durationMinutes: { type: Number, required: true },
     startsAt: Date,
     endsAt: Date,

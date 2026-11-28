@@ -34,7 +34,7 @@ import { QuestionEditor } from '../questions/QuestionEditor.jsx';
 
 const STEPS = [
   { label: 'Details', description: 'Subject and title', fields: ['subject', 'title', 'description'] },
-  { label: 'Questions', description: 'Exactly 10 marks', fields: ['questionIds'] },
+  { label: 'Questions', description: 'Select questions', fields: ['questionIds'] },
   { label: 'Schedule', description: 'When and how long', fields: ['availabilityMode', 'startsAt', 'endsAt', 'durationMinutes', 'attemptsAllowed'] },
   { label: 'Proctoring', description: 'Exam environment', fields: ['proctoring'] },
   { label: 'Review', description: 'Check and publish', fields: [] },
@@ -47,6 +47,7 @@ const MODES = [
 ];
 
 const DURATIONS = [10, 15, 20, 30, 45, 60];
+const assessmentKind = (category) => (category === 'Coding test' ? 'coding test' : category === 'Lab' ? 'lab' : 'quiz');
 
 const emptyQuiz = {
   subject: '',
@@ -84,7 +85,7 @@ function fromAssessment(a) {
   };
 }
 
-function toPayload(v) {
+function toPayload(v, marks) {
   return {
     ...v,
     startsAt: v.startsAt ? new Date(v.startsAt).toISOString() : null,
@@ -93,31 +94,33 @@ function toPayload(v) {
     attemptsAllowed: Number(v.attemptsAllowed),
     cieSlot: v.cieSlot || null,
     proctoring: { ...v.proctoring, maxViolations: Number(v.proctoring.maxViolations) },
-    maxMarks: QUIZ_MARKS,
+    maxMarks: v.category === 'Quiz' ? QUIZ_MARKS : marks,
   };
 }
 
-function MarksMeter({ total }) {
-  const done = total === QUIZ_MARKS;
-  const over = total > QUIZ_MARKS;
+function MarksMeter({ total, category }) {
+  const fixed = category === 'Quiz';
+  const done = fixed ? total === QUIZ_MARKS : total > 0;
+  const over = fixed && total > QUIZ_MARKS;
+  const maximum = fixed ? QUIZ_MARKS : Math.max(total, 1);
   return (
     <div className={`flex items-center gap-4 rounded-2xl p-4 ring-1 ring-inset ${done ? 'bg-success-soft/60 ring-success/30' : over ? 'bg-danger-soft/60 ring-danger/30' : 'bg-surface-2/60 ring-border'}`}>
-      <Ring value={Math.min(total, QUIZ_MARKS)} max={QUIZ_MARKS} size={64} stroke={7} color={`rgb(var(--c-${done ? 'success' : over ? 'danger' : 'primary'}))`} label={`${total} of ${QUIZ_MARKS} marks`}>
+      <Ring value={Math.min(total, maximum)} max={maximum} size={64} stroke={7} color={`rgb(var(--c-${done ? 'success' : over ? 'danger' : 'primary'}))`} label={fixed ? `${total} of ${QUIZ_MARKS} marks` : `${total} marks`}>
         <span className={`font-display text-base font-bold tabular ${done ? 'text-success' : over ? 'text-danger' : 'text-fg'}`}>{total}</span>
       </Ring>
       <div className="min-w-0">
         <p className="font-display text-sm font-semibold">
-          Total marks <span className="text-muted">/ {QUIZ_MARKS}</span>
+          Total marks {fixed && <span className="text-muted">/ {QUIZ_MARKS}</span>}
         </p>
-        <p className="mt-0.5 text-xs text-muted">{done ? 'Ready. Quizzes are always worth exactly 10 marks.' : over ? `Remove ${total - QUIZ_MARKS} mark(s) to continue.` : `Add ${QUIZ_MARKS - total} more mark(s) to continue.`}</p>
+        <p className="mt-0.5 text-xs text-muted">{fixed ? done ? 'Ready. Quizzes are always worth exactly 10 marks.' : over ? `Remove ${total - QUIZ_MARKS} mark(s) to continue.` : `Add ${QUIZ_MARKS - total} more mark(s) to continue.` : done ? 'Marks are based on the selected questions.' : 'Select questions to set the test marks.'}</p>
       </div>
     </div>
   );
 }
 
 function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank: fullBank, reloadBank, loading, category = 'Quiz' }) {
-  // Quizzes take MCQ and fill-in questions; labs also take coding questions.
-  const bank = useMemo(() => (category === 'Lab' ? fullBank : fullBank.filter((q) => q.type !== 'code')), [fullBank, category]);
+  // Quizzes take MCQ and fill-in questions; coding tests and labs also take coding questions.
+  const bank = useMemo(() => (category === 'Quiz' ? fullBank.filter((q) => q.type !== 'code') : fullBank), [fullBank, category]);
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
   const [creating, setCreating] = useState(false);
@@ -133,6 +136,7 @@ function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank: f
   };
   const suggest = () => {
     const pool = bank.filter((q) => !selectedIds.includes(String(q._id)));
+    if (category !== 'Quiz') return;
     const ids = suggestQuestions(pool, QUIZ_MARKS - total);
     if (!ids) return toast.error('No combination of remaining questions adds up exactly. Add a question with the missing marks.');
     setSelectedIds([...selectedIds, ...ids.map(String)]);
@@ -151,9 +155,9 @@ function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank: f
             <option value="">All types</option>
             <option value="single">Multiple choice</option>
             <option value="fill_blank">Fill in</option>
-            {category === 'Lab' && <option value="code">Coding</option>}
+            {category !== 'Quiz' && <option value="code">Coding</option>}
           </select>
-          <Button icon={Plus} onClick={() => setCreating(true)}>
+          <Button icon={Plus} onClick={() => setCreating(true)} disabled={!subject}>
             New question
           </Button>
         </div>
@@ -201,8 +205,8 @@ function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank: f
       </Card>
 
       <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-        <MarksMeter total={total} />
-        {total < QUIZ_MARKS && bank.length > selected.length && (
+        <MarksMeter total={total} category={category} />
+        {category === 'Quiz' && total < QUIZ_MARKS && bank.length > selected.length && (
           <Button className="w-full" icon={Sparkles} onClick={suggest}>
             Suggest questions to reach 10
           </Button>
@@ -238,6 +242,7 @@ function QuestionsStep({ subject, subjects, selectedIds, setSelectedIds, bank: f
           subjects={subjects}
           defaultSubject={subject}
           lockSubject
+          allowCode={false}
           onCancel={() => setCreating(false)}
           onSaved={async (q) => {
             setCreating(false);
@@ -346,12 +351,12 @@ function ProctoringStep({ value, onChange, errors }) {
 }
 
 /** The quiz as a student's card would show it, for the review step. */
-const previewQuiz = (values, subject, questionCount) => ({
+const previewQuiz = (values, subject, questionCount, maxMarks) => ({
   _id: 'preview',
   title: values.title || 'Untitled quiz',
   subject: subject ? { code: subject.code, name: subject.name } : undefined,
   questionCount,
-  maxMarks: QUIZ_MARKS,
+  maxMarks,
   durationMinutes: values.durationMinutes,
   proctoring: values.proctoring,
   availabilityMode: values.availabilityMode,
@@ -380,12 +385,12 @@ function ReviewStep({ values, subject, questions }) {
         <div>
           <p className="mb-2 font-display text-xs font-semibold uppercase tracking-wider text-muted">How students see it</p>
           <div className="pointer-events-none select-none" aria-hidden>
-            <QuizCard hero a={previewQuiz(values, subject, questions.length)} />
+            <QuizCard hero a={previewQuiz(values, subject, questions.length, values.category === 'Quiz' ? QUIZ_MARKS : sumMarks(questions))} />
           </div>
         </div>
         <Card className="h-fit">
           <div className="border-b border-border p-5">
-            <p className="font-display text-xs font-semibold uppercase tracking-wide text-primary-strong">Quiz · 10 marks</p>
+            <p className="font-display text-xs font-semibold uppercase tracking-wide text-primary-strong">{assessmentKind(values.category)} · {values.category === 'Quiz' ? QUIZ_MARKS : sumMarks(questions)} marks</p>
             <h2 className="mt-1 text-xl font-bold">{values.title}</h2>
             {values.description && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{values.description}</p>}
           </div>
@@ -442,7 +447,7 @@ export default function QuizBuilder() {
   const next = async () => {
     const ok = await trigger(STEPS[step].fields);
     if (!ok) return;
-    if (step === 1 && total !== QUIZ_MARKS) return toast.error(`Questions must add up to exactly ${QUIZ_MARKS} marks (currently ${total}).`);
+    if (step === 1 && values.category === 'Quiz' && total !== QUIZ_MARKS) return toast.error(`Questions must add up to exactly ${QUIZ_MARKS} marks (currently ${total}).`);
     const n = step + 1;
     setStep(n);
     setReached((r) => Math.max(r, n));
@@ -456,18 +461,19 @@ export default function QuizBuilder() {
       if (firstBad >= 0) setStep(firstBad);
       return toast.error('Some details need attention');
     }
-    if (total !== QUIZ_MARKS) {
+    if (values.category === 'Quiz' && total !== QUIZ_MARKS) {
       setStep(1);
       return toast.error(`Questions must add up to exactly ${QUIZ_MARKS} marks.`);
     }
     setSaving(publish ? 'publish' : 'draft');
     try {
-      const payload = toPayload(getValues());
+      const payload = toPayload(getValues(), total);
       if (editing) {
         await api.patch(`/assessments/${id}`, payload);
         if (publish) await api.post(`/assessments/${id}/publish`);
       } else await api.post('/assessments', { ...payload, publish });
-      toast.success(publish ? 'Quiz published. Students have been notified.' : 'Draft saved');
+      const kind = assessmentKind(getValues('category'));
+      toast.success(publish ? `${kind[0].toUpperCase()}${kind.slice(1)} published. Students have been notified.` : 'Draft saved');
       navigate('/assessments');
     } catch (err) {
       toast.error(String(err));
@@ -487,9 +493,9 @@ export default function QuizBuilder() {
   return (
     <>
       <PageHeader
-        eyebrow={editing ? 'Edit draft' : 'New quiz'}
+        eyebrow={editing ? 'Edit draft' : `New ${assessmentKind(values.category)}`}
         title={values.title || 'Untitled quiz'}
-        description="Quizzes are worth exactly 10 marks and use multiple-choice or fill-in questions."
+        description={values.category === 'Quiz' ? 'Quizzes are worth exactly 10 marks and last 20 minutes.' : 'Assessment marks and duration are based on your selected questions and settings.'}
         actions={
           <Button variant="ghost" icon={ArrowLeft} to="/assessments">
             Assessments
@@ -527,20 +533,22 @@ export default function QuizBuilder() {
                 <Input label="Title" required placeholder="e.g. Unit 2 quiz: Trees and graphs" error={formState.errors.title?.message} {...register('title')} />
                 <Select
                   label="Kind"
-                  hint={values.category === 'Lab' ? 'A lab can include coding questions that are compiled, run and auto-graded against test cases.' : 'MCQ and fill-in questions only.'}
+                  hint={values.category !== 'Quiz' ? 'Include coding questions that are compiled, run and auto-graded against test cases.' : 'MCQ and fill-in questions only.'}
                   {...register('category', {
                     onChange: (e) => {
                       setValue('cieSlot', '');
-                      if (e.target.value !== 'Lab') setValue('questionIds', values.questionIds.filter((id) => bank.data.find((q) => String(q._id) === id)?.type !== 'code'));
+                      if (e.target.value === 'Quiz') setValue('durationMinutes', 20, { shouldValidate: true });
+                      if (e.target.value === 'Quiz') setValue('questionIds', values.questionIds.filter((id) => bank.data.find((q) => String(q._id) === id)?.type !== 'code'));
                     },
                   })}
                 >
                   <option value="Quiz">Quiz</option>
-                  <option value="Lab">Lab (coding)</option>
+                  <option value="Coding test">Coding test</option>
+                  <option value="Lab">Lab</option>
                 </Select>
-                <Select label="Counts towards CIE as" error={formState.errors.cieSlot?.message} hint={values.category === 'Lab' ? 'The lab test mark fills the CIE sheet automatically for subjects with a lab.' : 'Quiz 1 and Quiz 2 marks fill the CIE sheet automatically. Each subject has one of each.'} {...register('cieSlot')}>
+                <Select label="Counts towards CIE as" error={formState.errors.cieSlot?.message} hint={values.category !== 'Quiz' ? 'The lab test mark fills the CIE sheet automatically for subjects with a lab.' : 'Quiz 1 and Quiz 2 marks fill the CIE sheet automatically. Each subject has one of each.'} {...register('cieSlot')}>
                   <option value="">Practice (not counted)</option>
-                  {values.category === 'Lab' ? (
+                  {values.category !== 'Quiz' ? (
                     <option value="LAB_TEST">Lab test (10 marks)</option>
                   ) : (
                     <>
@@ -617,8 +625,8 @@ export default function QuizBuilder() {
               Back
             </Button>
             {step >= 1 && (
-              <span className={`text-sm font-semibold ${total === QUIZ_MARKS ? 'text-success' : 'text-muted'}`}>
-                {total} / {QUIZ_MARKS} marks · {selectedQuestions.length} questions
+              <span className={`text-sm font-semibold ${values.category !== 'Quiz' || total === QUIZ_MARKS ? 'text-success' : 'text-muted'}`}>
+                {values.category === 'Quiz' ? `${total} / ${QUIZ_MARKS} marks` : `${total} marks`} · {selectedQuestions.length} questions
               </span>
             )}
             <div className="ml-auto flex flex-wrap gap-2">
@@ -633,7 +641,7 @@ export default function QuizBuilder() {
                 </Button>
               ) : (
                 <Button variant="primary" icon={Send} onClick={() => save(true)} loading={saving === 'publish'} disabled={Boolean(saving)}>
-                  Publish quiz
+                  Publish {assessmentKind(values.category)}
                 </Button>
               )}
             </div>

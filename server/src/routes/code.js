@@ -95,7 +95,7 @@ async function authorizeRun(b, user, submit) {
     return { ...fields, attempt: at._id, assessment: at.assessment._id, kind: submit ? 'submit' : 'run' };
   }
   const enrolled = question.subject?.students?.some((id) => id.equals(user._id));
-  if (!question.code?.practice || question.archivedAt || !enrolled)
+  if (question.archivedAt || !enrolled)
     throw httpError(404, 'Coding question not found');
   return { ...fields, kind: submit ? 'submit' : 'run' };
 }
@@ -195,7 +195,7 @@ router.get(
   '/practice/questions',
   authenticate,
   wrap(async (req, res) => {
-    const filter = { type: 'code', 'code.practice': true, archivedAt: null };
+    const filter = { type: 'code', archivedAt: null };
     if (req.user.role === 'student')
       filter.subject = { $in: await Subject.find({ students: req.user._id }).distinct('_id') };
     else {
@@ -266,7 +266,7 @@ router.get(
     const visible =
       q &&
       (req.user.role === 'student'
-        ? q.code?.practice && q.subject?.students?.some((id) => id.equals(req.user._id))
+        ? q.subject?.students?.some((id) => id.equals(req.user._id))
         : teachesSubject(q.subject, req.user));
     if (!visible) throw httpError(404, 'Coding question not found');
     const last = await CodeRun.findOne({
